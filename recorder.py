@@ -6,7 +6,7 @@ import os
 import numpy as np
 
 ambient_detected = False
-rms_that_indicates_speech = 50
+rms_that_indicates_speech = 500
 
 WHISPER_MODEL = whisper.load_model("tiny.en")
 
@@ -56,11 +56,11 @@ def live_speech(wake_word_max_length_in_seconds=3):
                 else:
                     if rms_that_indicates_speech < rms_of_recording:
                         rms_that_indicates_speech = rms_of_recording
-                        print(f"RMS that indicates speech is {rms_that_indicates_speech}")
                 continue
             elif recorded_seconds == 1:
                 print("Listening...")
                 rms_that_indicates_speech = rms_that_indicates_speech * 2.5
+                print(f"RMS that indicates speech is {rms_that_indicates_speech}")
                 ambient_detected = True
 
         if recording:
