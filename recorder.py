@@ -8,7 +8,7 @@ whisper_model = whisper.load_model("base")
 ambient_detected = False
 speech_volume = 50
 
-def live_speech(wait_time=10):
+def live_speech(wait_time=50):
     global ambient_detected
     global speech_volume
 
