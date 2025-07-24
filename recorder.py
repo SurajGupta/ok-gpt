@@ -11,9 +11,9 @@ rms_that_indicates_speech = 500
 WHISPER_MODEL = whisper.load_model("base.en")
 
 FRAMES_PER_SECOND = 16000 # 16000 Hz
-FRAMES_PER_BUFFER = 4000  # 4000 / 16000 Hz  =  250ms @ 16kHz microphone read
+FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
 
-def live_speech(wake_word_max_length_in_seconds=3):
+def live_speech(wake_word_max_length_in_seconds=2):
     global ambient_detected
     global rms_that_indicates_speech
 
