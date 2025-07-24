@@ -53,7 +53,7 @@ def live_speech(wake_word_max_length_in_seconds=3):
             if recorded_seconds < 1:
                 if recorded_seconds == seconds_per_buffer:
                     print("Detecting ambient noise...")
-                else
+                else:
                     if rms_that_indicates_speech < rms_of_recording:
                         rms_that_indicates_speech = rms_of_recording
                         print(f"RMS that indicates speech is {rms_that_indicates_speech}")
