@@ -52,9 +52,9 @@ def live_speech(wait_time=10):
             recording = False
 
             wf = wave.open("audio.wav", 'wb')
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(audio.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
+            wf.setnchannels(1)
+            wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+            wf.setframerate(16000)
             wf.writeframes(b''.join(frames))
             wf.close()
 
