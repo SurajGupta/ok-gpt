@@ -15,7 +15,7 @@ def live_speech(wait_time=10):
     audio = pyaudio.PyAudio()
 
     stream = audio.open(
-        format=self.pyaudio.paInt16,
+        format=pyaudio.paInt16,
         channels=1,
         rate=16000,
         input=True,
