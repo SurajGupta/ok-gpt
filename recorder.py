@@ -31,7 +31,9 @@ def live_speech(wait_time=50):
         frames_recorded += 1
         data = stream.read(4000)
         rms = audioop.rms(data, 2)
+        print(f"RMS is {rms}")
 
+        print rms
         if not ambient_detected:
             if frames_recorded < 40:
                 if frames_recorded == 1:
