@@ -62,6 +62,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 rms_that_indicates_speech = rms_that_indicates_speech * 4
                 print(f"RMS that indicates speech is {rms_that_indicates_speech}")
                 ambient_detected = True
+                continue
 
         if is_recording:
             frames.append(recording)
