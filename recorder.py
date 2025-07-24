@@ -49,6 +49,7 @@ def live_speech(wait_time=50):
         if rms > speech_volume:
             recording = True
             frames_recorded = 0
+            print("recording")
         elif recording and frames_recorded > wait_time:
             recording = False
 
