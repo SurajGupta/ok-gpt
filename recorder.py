@@ -77,6 +77,8 @@ def live_speech(wake_word_max_length_in_seconds=3):
             recording = True
             recorded_seconds = seconds_per_buffer
             print("recording")
+        else:
+            recorded_seconds = 0
 
     # TODO: do these when breaking from generator
     stream.stop_stream()
