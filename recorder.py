@@ -6,25 +6,21 @@ import os
 
 whisper_model = whisper.load_model("base")
 ambient_detected = False
-speech_volume = 100
+speech_volume = 50
 
 def live_speech(wait_time=10):
     global ambient_detected
     global speech_volume
 
-    FORMAT = pyaudio.paInt16
-    CHANNELS = 1
-    RATE = 44100
-    CHUNK = 1024
-
     audio = pyaudio.PyAudio()
 
     stream = audio.open(
-        format=FORMAT,
-        channels=CHANNELS,
-        rate=RATE,
+        format=self.pyaudio.paInt16,
+        channels=1,
+        rate=16000,
         input=True,
-        frames_per_buffer=CHUNK
+        frames_per_buffer=4000,
+        start=True,                        # start right away
     )
 
     frames = []
@@ -33,7 +29,7 @@ def live_speech(wait_time=10):
 
     while True:
         frames_recorded += 1
-        data = stream.read(CHUNK)
+        data = stream.read(4000)
         rms = audioop.rms(data, 2)
 
         if not ambient_detected:
