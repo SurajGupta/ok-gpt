@@ -41,6 +41,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
         # Will wait until buffer is full before returning.
         recording = stream.read(FRAMES_PER_BUFFER)
         recorded_seconds += seconds_per_buffer
+        print(f"Seconds per buffer {seconds_per_buffer}")
 
         # Calculate RMS of recording to quantify the loudness
         rms_of_recording = audioop.rms(recording, 2)
