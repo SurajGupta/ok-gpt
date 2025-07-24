@@ -39,6 +39,7 @@ def live_speech(wait_time=50):
                 if frames_recorded > 5:
                     if speech_volume < rms:
                         speech_volume = rms
+                        print(f"speech_volume is {speech_volume}")
                 continue
             elif frames_recorded == 40:
                 print("Listening...")
