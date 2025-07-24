@@ -3,6 +3,7 @@ import whisper
 import pyaudio
 import wave
 import os
+import numpy as np
 
 whisper_model = whisper.load_model("base")
 ambient_detected = False
@@ -53,19 +54,22 @@ def live_speech(wait_time=50):
         elif recording and frames_recorded > wait_time:
             recording = False
 
-            wf = wave.open("audio.wav", 'wb')
-            wf.setnchannels(1)
-            wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(16000)
-            wf.writeframes(b''.join(frames))
-            wf.close()
+            # wf = wave.open("audio.wav", 'wb')
+            # wf.setnchannels(1)
+            # wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+            # wf.setframerate(16000)
+            # wf.writeframes(b''.join(frames))
+            # wf.close()
+            #result = whisper_model.transcribe(
+            #    "audio.wav",
+            #    fp16=False
+            #)
+            #os.remove("audio.wav")
 
-            result = whisper_model.transcribe(
-                "audio.wav",
-                fp16=False
-            )
-
-            os.remove("audio.wav")
+            pcm = b''.join(frames)
+            the_audio = np.frombuffer(pcm, dtype=np.int16)
+            the_audio = the_audio.astype(np.float32) / 32768.0
+            result  = whisper_model.transcribe(the_audio, fp16=False)
 
             yield result["text"].strip()
 
