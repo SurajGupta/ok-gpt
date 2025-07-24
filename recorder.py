@@ -8,7 +8,7 @@ import numpy as np
 ambient_detected = False
 rms_that_indicates_speech = 500
 
-WHISPER_MODEL = whisper.load_model("small.en")
+WHISPER_MODEL = whisper.load_model("base.en")
 
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 4000  # 4000 / 16000 Hz  =  250ms @ 16kHz microphone read
