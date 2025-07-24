@@ -33,7 +33,7 @@ def live_speech(wake_word_max_length_in_seconds=3):
 
     frames = []
 
-    recording = False
+    is_recording = False
     recorded_seconds = 0
 
     while True:
@@ -63,10 +63,10 @@ def live_speech(wake_word_max_length_in_seconds=3):
                 print(f"RMS that indicates speech is {rms_that_indicates_speech}")
                 ambient_detected = True
 
-        if recording:
+        if is_recording:
             frames.append(recording)
             if (recorded_seconds >= wake_word_max_length_in_seconds):
-                recording = False
+                is_recording = False
                 pcm = b''.join(frames)
                 the_audio = np.frombuffer(pcm, dtype=np.int16)
                 the_audio = the_audio.astype(np.float32) / 32768.0
@@ -74,7 +74,7 @@ def live_speech(wake_word_max_length_in_seconds=3):
                 yield result["text"].strip()
                 frames = []
         elif (rms_of_recording > rms_that_indicates_speech):
-            recording = True
+            is_recording = True
             recorded_seconds = seconds_per_buffer
             print("recording")
         else:
