@@ -81,7 +81,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 end = time.time()
                 length = end - start
                 print("It took", length, "seconds!")
-
+                result = WHISPER_MODEL.transcribe(tmp)
                 print(result["text"].strip())
 
                 start = time.time()
