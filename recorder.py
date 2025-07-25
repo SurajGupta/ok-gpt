@@ -55,7 +55,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
     
         print(f"decibles is {dB}")
 
-        db_that_indicates_speech = 50
+        db_that_indicates_speech = 55
 
         if is_recording:
             frames.append(recording)
