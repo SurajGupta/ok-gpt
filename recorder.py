@@ -4,6 +4,7 @@ import pyaudio
 import wave
 import os
 import numpy as np
+import time
 
 ambient_detected = False
 rms_that_indicates_speech = 500
