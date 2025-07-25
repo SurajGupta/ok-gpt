@@ -55,22 +55,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
     
         print(f"decibles is {dB}")
 
-        # At startup, determine the ambient sound level and use that to determine
-        # what the level will be considered speech
-        if not ambient_detected:
-            if recorded_seconds < 1:
-                if recorded_seconds == seconds_per_buffer:
-                    print("Detecting ambient noise...")
-                else:
-                    if rms_that_indicates_speech < rms_of_recording:
-                        rms_that_indicates_speech = rms_of_recording
-                continue
-            elif recorded_seconds == 1:
-                print("Listening...")
-                rms_that_indicates_speech = rms_that_indicates_speech * 4
-                print(f"RMS that indicates speech is {rms_that_indicates_speech}")
-                ambient_detected = True
-                continue
+        db_that_indicates_speech = 50
 
         if is_recording:
             frames.append(recording)
@@ -84,7 +69,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
 
                 yield result["text"].strip()
                 frames = []
-        elif (rms_of_recording > rms_that_indicates_speech):
+        elif (dB > db_that_indicates_speech):
             is_recording = True
             frames.append(recording)
             recorded_seconds = seconds_per_buffer
