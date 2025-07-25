@@ -76,7 +76,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 print(result["text"].strip())
 
                 wf = wave.open("audio.wav", 'wb')
-                wf.setnchannels(CHANNELS)
+                wf.setnchannels(1)
                 wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
                 wf.setframerate(FRAMES_PER_SECOND)
                 wf.writeframes(b''.join(frames))
@@ -87,7 +87,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                     fp16=False
                 )
                 print(result["text"].strip())
-                
+
                 os.remove("audio.wav")
 
                 yield result["text"].strip()
