@@ -16,8 +16,13 @@ import sys
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
 SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
-
 CALIBRATION_TIME_IN_SECONDS = 30
+DECIBLE_METER_MIN_DB, DECIBLE_METER_MAX_DB = 0, 90
+DECIBLE_METER_BAR_WIDTH = 40
+QUIET_ROOM_DECIBLES = 30
+NORMAL_CONVERSATION_DECIBLES = 55
+TALKING_DIRECTLY_INTO_MIC_DECIBLES = 75
+MIN_DECIBLES_BEFORE_SCALING_OFFSET = 20
 
 CALIBRATION_INTRO_MESSAGE = f"""
 We do some math to convert microphone input into decibles.
@@ -30,9 +35,9 @@ When you are ready, we will begin recording and we'll output
 the calculated decible value.  Determine how many decibles
 to add to this output to achieve the following:
 
-   - Quiet Room: 30-35 dB
-   - Soft Conversation: 55 db
-   - Talking Directly Into Mic: 70-80 db
+   - Quiet Room: {QUIET_ROOM_DECIBLES} dB
+   - Normal Conversation: {NORMAL_CONVERSATION_DECIBLES} dB
+   - Talking Directly Into Mic: {TALKING_DIRECTLY_INTO_MIC_DECIBLES} dB
 
 We'll stop after {CALIBRATION_TIME_IN_SECONDS} seconds.
 
@@ -74,35 +79,32 @@ def calibrate_decibles(offset_to_computed_decibles=0):
         decibles = 20 * math.log10(rms_of_recorded_input_data / 32768.0)
         decibles_with_offset = decibles + offset_to_computed_decibles
 
-        if (decibles_with_offset < 20):
+        # Fixed offset doesn't honor how decibles scale as sound gets louder.
+        # After a minimum decible value (with offset), scale the offset before applying it.
+        if (decibles_with_offset <= MIN_DECIBLES_BEFORE_SCALING_OFFSET):
             decibles = decibles_with_offset
         else:
-            scale   = (80.0 - 35.0) / (offset_to_computed_decibles - 35.0)
-            decibles = decibles * scale + 80.0
+            offset_scale = (TALKING_DIRECTLY_INTO_MIC_DECIBLES - QUIET_ROOM_DECIBLES) / (offset_to_computed_decibles - QUIET_ROOM_DECIBLES)
+            decibles = (decibles * offset_scale) + TALKING_DIRECTLY_INTO_MIC_DECIBLES
 
         # Output computed decibles to user.
-        sys.stdout.write("\r" + render_meter(round(decibles)))
+        sys.stdout.write("\r" + render_decible_meter(round(decibles)))
         sys.stdout.flush()
-        # print(f"calculated decibles: {round(decibles)}")
 
     # Cleanup
     pyaudio_input_stream.stop_stream()
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-MIN_DB, MAX_DB = 0.0, 90.0
-BAR_WIDTH = 40
-
-def render_meter(decibles):
+def render_decible_meter(decibles):
     # clamp
-    x = max(MIN_DB, min(MAX_DB, decibles))
+    x = max(DECIBLE_METER_MIN_DB, min(DECIBLE_METER_MAX_DB, decibles))
 
     # fill ratio
-    f = (x - MIN_DB) / (MAX_DB - MIN_DB)
-    filled = int(f * BAR_WIDTH)
-    bar = "█" * filled + "─" * (BAR_WIDTH - filled)
+    f = (x - DECIBLE_METER_MIN_DB) / (DECIBLE_METER_MAX_DB - DECIBLE_METER_MIN_DB)
+    filled = int(f * DECIBLE_METER_BAR_WIDTH)
+    bar = "█" * filled + "─" * (DECIBLE_METER_BAR_WIDTH - filled)
     return f"[{bar}] {decibles:5.1f} dB"
-
 
 def live_speech(wake_word_max_length_in_seconds=1.5):
     global ambient_detected
