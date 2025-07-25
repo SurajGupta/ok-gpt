@@ -60,9 +60,9 @@ def calibrate_decibles(offset_to_computed_decibles=0):
         start=True,
     )
 
+    # Loop for CALIBRATION_TIME_IN_SECONDS
     elapsed_seconds = 0
-
-    while (elapsed_seconds < CALIBRATION_TIME_IN_SECONDS)
+    while (elapsed_seconds < CALIBRATION_TIME_IN_SECONDS):
         
         # Read from the input/mic stream, wait until buffer is full before returning.
         recorded_input_data = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
