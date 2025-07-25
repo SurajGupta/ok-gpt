@@ -81,7 +81,7 @@ def calibrate_decibles(offset_to_computed_decibles=0):
             decibles = decibles * scale + 80.0
 
         # Output computed decibles to user.
-        sys.stdout.write("\r" + render_meter(db_spl))
+        sys.stdout.write("\r" + render_meter(decibles))
         sys.stdout.flush()
         # print(f"calculated decibles: {round(decibles)}")
 
