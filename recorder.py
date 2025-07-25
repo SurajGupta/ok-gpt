@@ -16,9 +16,9 @@ FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
 SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
 
-CALIBRATION_TIME_IN_SECONDS = 60
+CALIBRATION_TIME_IN_SECONDS = 30
 
-CALIBRATION_INTRO_MESSAGE = """
+CALIBRATION_INTRO_MESSAGE = f"""
 We do some math to convert microphone input into decibles.
 However, the result needs to be calibrated to be accurate.
 
@@ -33,7 +33,7 @@ to add to this output to achieve the following:
    - Soft Conversation: 55 db
    - Talking Directly Into Mic: 70-80 db
 
-We'll stop after a minute.  
+We'll stop after {CALIBRATION_TIME_IN_SECONDS} seconds.
 
 Call this function again setting `offset_to_computed_decibles`
 to your best guess.  Rinse-and-repeat until you've determine
