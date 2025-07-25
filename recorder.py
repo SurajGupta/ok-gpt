@@ -6,6 +6,7 @@ import os
 import numpy as np
 import time
 import tempfile
+import math
 
 ambient_detected = False
 rms_that_indicates_speech = 500
