@@ -74,18 +74,8 @@ def calibrate_decibles(offset_to_computed_decibles=0):
         recorded_input_data = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
         elapsed_seconds += SECONDS_IN_BUFFER
 
-        # Calculate decibles of recording to quantify the loudness
-        rms_of_recorded_input_data = audioop.rms(recorded_input_data, 2)
-        decibles = 20 * math.log10(rms_of_recorded_input_data / 32768.0)
-        decibles_with_offset = decibles + offset_to_computed_decibles
-
-        # Fixed offset doesn't honor how decibles scale as sound gets louder.
-        # After a minimum decible value (with offset), scale the offset before applying it.
-        if (decibles_with_offset <= MIN_DECIBLES_BEFORE_SCALING_OFFSET):
-            decibles = decibles_with_offset
-        else:
-            offset_scale = (TALKING_DIRECTLY_INTO_MIC_DECIBLES - QUIET_ROOM_DECIBLES) / (offset_to_computed_decibles - QUIET_ROOM_DECIBLES)
-            decibles = (decibles * offset_scale) + TALKING_DIRECTLY_INTO_MIC_DECIBLES
+        # Calculate decibles.
+        decibles = _calculate_decibles(recorded_input_data, offset_to_computed_decibles)
 
         # Output computed decibles to user.
         sys.stdout.write("\r" + _render_decible_meter(round(decibles)))
@@ -96,7 +86,16 @@ def calibrate_decibles(offset_to_computed_decibles=0):
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-def live_speech(wake_word_max_length_in_seconds=1.5):
+def detect_wake_word(
+        offset_to_computed_decibles,
+        wake_word_max_length_in_seconds=1.5):
+
+    # Check offset_to_computed_decibles
+    if not isinstance(offset_to_computed_decibles, (int, float)):
+        raise TypeError(f"'offset_to_computed_decibles' must be a number, got {type(offset_to_computed_decibles).__name__!r}")
+
+    if (offset_to_computed_decibles <= 0):
+        raise ValueError(f"'offset_to_computed_decibles' must be >= 0, got {x}.  Microphone was not calibrated.")
 
     # Open the audio stream and start recording right away.
     pyaudio_instance = pyaudio.PyAudio()
@@ -113,51 +112,52 @@ def live_speech(wake_word_max_length_in_seconds=1.5):
     is_recording = False
     recorded_seconds = 0
     recording = 0
-
-    while True:
-        # Read from the input/mic stream.  
-        # Will wait until buffer is full before returning.
-        prior_recording = recording
-        recording = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
-        recorded_seconds += SECONDS_IN_BUFFER
-
-        # Calculate RMS of recording to quantify the loudness
-        rms_of_recording = audioop.rms(recording, 2)
-
-        # print(f"RMS is {rms_of_recording}")
-        dBFS = 20 * math.log10(rms_of_recording / 32768.0)
-        DB_OFFSET = 70
-        dB   = dBFS + DB_OFFSET
     
-        print(f"decibles is {dB}")
+    try:
+        while True:
+            # Read from the input/mic stream.  
+            # Will wait until buffer is full before returning.
+            prior_recording = recording
+            recording = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
+            recorded_seconds += SECONDS_IN_BUFFER
 
-        db_that_indicates_speech = 55
+            # Calculate RMS of recording to quantify the loudness
+            rms_of_recording = audioop.rms(recording, 2)
 
-        if is_recording:
-            frames.append(recording)
-            if (recorded_seconds >= wake_word_max_length_in_seconds):
-                is_recording = False
-                
-                pcm = b''.join(frames)
-                the_audio = np.frombuffer(pcm, dtype=np.int16)
-                the_audio = the_audio.astype(np.float32) / 32768.0
-                result  = WHISPER_MODEL.transcribe(the_audio, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
+            # print(f"RMS is {rms_of_recording}")
+            dBFS = 20 * math.log10(rms_of_recording / 32768.0)
+            DB_OFFSET = 70
+            dB   = dBFS + DB_OFFSET
+        
+            print(f"decibles is {dB}")
 
-                yield result["text"].strip()
-                frames = []
-        elif (dB > db_that_indicates_speech):
-            is_recording = True
-            frames.append(prior_recording)
-            frames.append(recording)
-            recorded_seconds = SECONDS_IN_BUFFER
-            print("recording")
-        else:
-            recorded_seconds = 0
+            db_that_indicates_speech = 55
 
-    # Cleanup
-    pyaudio_input_stream.stop_stream()
-    pyaudio_input_stream.close()
-    pyaudio_instance.terminate()
+            if is_recording:
+                frames.append(recording)
+                if (recorded_seconds >= wake_word_max_length_in_seconds):
+                    is_recording = False
+                    
+                    pcm = b''.join(frames)
+                    the_audio = np.frombuffer(pcm, dtype=np.int16)
+                    the_audio = the_audio.astype(np.float32) / 32768.0
+                    result  = WHISPER_MODEL.transcribe(the_audio, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
+
+                    yield result["text"].strip()
+                    frames = []
+            elif (dB > db_that_indicates_speech):
+                is_recording = True
+                frames.append(prior_recording)
+                frames.append(recording)
+                recorded_seconds = SECONDS_IN_BUFFER
+                print("recording")
+            else:
+                recorded_seconds = 0
+    finally:
+        # Cleanup when generator closes
+        pyaudio_input_stream.stop_stream()
+        pyaudio_input_stream.close()
+        pyaudio_instance.terminate()
 
 def _render_decible_meter(decibles):
     # clamp
@@ -168,3 +168,19 @@ def _render_decible_meter(decibles):
     filled = int(f * DECIBLE_METER_BAR_WIDTH)
     bar = "█" * filled + "─" * (DECIBLE_METER_BAR_WIDTH - filled)
     return f"[{bar}] {decibles:5.1f} dB"
+
+def _calculate_decibles(recorded_input_data, offset_to_computed_decibles):
+    # Calculate decibles of recording to quantify the loudness
+    rms_of_recorded_input_data = audioop.rms(recorded_input_data, 2)
+    decibles = 20 * math.log10(rms_of_recorded_input_data / 32768.0)
+    decibles_with_offset = decibles + offset_to_computed_decibles
+
+    # Fixed offset doesn't honor how decibles scale as sound gets louder.
+    # After a minimum decible value (with offset), scale the offset before applying it.
+    if (decibles_with_offset <= MIN_DECIBLES_BEFORE_SCALING_OFFSET):
+        decibles = decibles_with_offset
+    else:
+        offset_scale = (TALKING_DIRECTLY_INTO_MIC_DECIBLES - QUIET_ROOM_DECIBLES) / (offset_to_computed_decibles - QUIET_ROOM_DECIBLES)
+        decibles = (decibles * offset_scale) + TALKING_DIRECTLY_INTO_MIC_DECIBLES
+
+    return decibles
