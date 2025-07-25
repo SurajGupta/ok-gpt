@@ -49,8 +49,11 @@ def live_speech(wake_word_max_length_in_seconds=2):
         rms_of_recording = audioop.rms(recording, 2)
 
         # print(f"RMS is {rms_of_recording}")
-        decibles = 20 * math.log10(rms_of_recording)
-        print(f"decibles is {decibles}")
+        dBFS = 20 * math.log10(rms_of_recording / 32768.0)
+        DB_OFFSET = 0
+        dB   = dBFS + DB_OFFSET
+    
+        print(f"decibles is {dB}")
 
         # At startup, determine the ambient sound level and use that to determine
         # what the level will be considered speech
