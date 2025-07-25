@@ -81,7 +81,7 @@ def calibrate_decibles(offset_to_computed_decibles=0):
             decibles = decibles * scale + 80.0
 
         # Output computed decibles to user.
-        sys.stdout.write("\r" + render_meter(decibles))
+        sys.stdout.write("\r" + render_meter(round(decibles)))
         sys.stdout.flush()
         time.sleep(0.05)
         # print(f"calculated decibles: {round(decibles)}")
@@ -91,7 +91,7 @@ def calibrate_decibles(offset_to_computed_decibles=0):
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-MIN_DB, MAX_DB = 30.0, 80.0
+MIN_DB, MAX_DB = 0.0, 90.0
 BAR_WIDTH = 40
 
 def render_meter(decibles):
