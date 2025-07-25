@@ -38,7 +38,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
 
     is_recording = False
     recorded_seconds = 0
-    prior_recording = 0
+    recording = 0
 
     while True:
         # Read from the input/mic stream.  
