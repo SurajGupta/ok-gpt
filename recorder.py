@@ -79,7 +79,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                         wf.writeframes(pcm)
                     tmp.flush()
                     tmp.seek(0)                 
-                    result = WHISPER_MODEL.transcribe(tmp.name, fp16=False, temperature=0, temperature_increment_on_fallback=0, compression_ratio_threshold=None, logprob_threshold=None)
+                    result = WHISPER_MODEL.transcribe(tmp.name, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
                 end = time.time()
                 length = end - start
                 print("It took", length, "seconds!")
@@ -89,7 +89,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 pcm = b''.join(frames)
                 the_audio = np.frombuffer(pcm, dtype=np.int16)
                 the_audio = the_audio.astype(np.float32) / 32768.0
-                result  = WHISPER_MODEL.transcribe(the_audio, fp16=False, temperature=0, temperature_increment_on_fallback=0, compression_ratio_threshold=None, logprob_threshold=None)
+                result  = WHISPER_MODEL.transcribe(the_audio, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
                 end = time.time()
                 length = end - start
                 print("It took", length, "seconds!")
@@ -102,7 +102,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 wf.setframerate(FRAMES_PER_SECOND)
                 wf.writeframes(b''.join(frames))
                 wf.close()
-                result = WHISPER_MODEL.transcribe("audio.wav", fp16=False, temperature=0, temperature_increment_on_fallback=0, compression_ratio_threshold=None, logprob_threshold=None )
+                result = WHISPER_MODEL.transcribe("audio.wav", fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
                 end = time.time()
                 length = end - start
                 print("It took", length, "seconds!")
