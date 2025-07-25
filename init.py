@@ -2,7 +2,7 @@ import json
 
 from recorder import live_speech, calibrate_decibles
 
-calibrate_decibles(50)
+calibrate_decibles(65)
 
 # wakeup_words = []
 
