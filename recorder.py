@@ -72,6 +72,19 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 
                 start = time.time()
                 pcm = b''.join(frames)
+                with tempfile.TemporaryFile(suffix=".wav") as tmp:
+                    with wave.open(tmp, "wb") as wf:
+                        wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(16000)
+                        wf.writeframes(pcm)
+                    tmp.seek(0)                     # rewind so ffmpeg can read
+                end = time.time()
+                length = end - start
+                print("It took", length, "seconds!")
+
+                print(result["text"].strip())
+
+                start = time.time()
+                pcm = b''.join(frames)
                 the_audio = np.frombuffer(pcm, dtype=np.int16)
                 the_audio = the_audio.astype(np.float32) / 32768.0
                 result  = WHISPER_MODEL.transcribe(the_audio, fp16=False)
