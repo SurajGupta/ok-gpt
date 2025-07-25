@@ -11,6 +11,7 @@ import pyaudio
 import audioop
 import click
 import math
+import sys
 
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
@@ -80,12 +81,28 @@ def calibrate_decibles(offset_to_computed_decibles=0):
             decibles = decibles * scale + 80.0
 
         # Output computed decibles to user.
-        print(f"calculated decibles: {round(decibles)}")
+        sys.stdout.write("\r" + render_meter(db_spl))
+        sys.stdout.flush()
+        # print(f"calculated decibles: {round(decibles)}")
 
     # Cleanup
     pyaudio_input_stream.stop_stream()
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
+
+MIN_DB, MAX_DB = 30.0, 80.0
+BAR_WIDTH = 40
+
+def render_meter(decibles):
+    # clamp
+    x = max(MIN_DB, min(MAX_DB, decibles))
+
+    # fill ratio
+    f = (x - MIN_DB) / (MAX_DB - MIN_DB)
+    filled = int(f * BAR_WIDTH)
+    bar = "█" * filled + "─" * (BAR_WIDTH - filled)
+    return f"[{bar}] {decibles:5.1f} dB"
+
 
 def live_speech(wake_word_max_length_in_seconds=1.5):
     global ambient_detected
