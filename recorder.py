@@ -41,7 +41,6 @@ def live_speech(wake_word_max_length_in_seconds=2):
         # Will wait until buffer is full before returning.
         recording = stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
         recorded_seconds += seconds_per_buffer
-        print(f"Seconds per buffer {seconds_per_buffer}")
 
         # Calculate RMS of recording to quantify the loudness
         rms_of_recording = audioop.rms(recording, 2)
@@ -69,10 +68,28 @@ def live_speech(wake_word_max_length_in_seconds=2):
             frames.append(recording)
             if (recorded_seconds >= wake_word_max_length_in_seconds):
                 is_recording = False
+                
                 pcm = b''.join(frames)
                 the_audio = np.frombuffer(pcm, dtype=np.int16)
                 the_audio = the_audio.astype(np.float32) / 32768.0
                 result  = WHISPER_MODEL.transcribe(the_audio, fp16=False)
+                print(result["text"].strip())
+
+                wf = wave.open("audio.wav", 'wb')
+                wf.setnchannels(CHANNELS)
+                wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+                wf.setframerate(FRAMES_PER_SECOND)
+                wf.writeframes(b''.join(frames))
+                wf.close()
+
+                result = WHISPER_MODEL.transcribe(
+                    "audio.wav",
+                    fp16=False
+                )
+                print(result["text"].strip())
+                
+                os.remove("audio.wav")
+
                 yield result["text"].strip()
                 frames = []
         elif (rms_of_recording > rms_that_indicates_speech):
