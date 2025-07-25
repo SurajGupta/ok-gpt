@@ -1,26 +1,91 @@
-import audioop
 import whisper
-import pyaudio
 import wave
 import os
 import numpy as np
 import time
-import tempfile
-import math
 
-ambient_detected = False
-rms_that_indicates_speech = 500
-
+# Constants
 WHISPER_MODEL = whisper.load_model("tiny.en")
+
+import pyaudio
+import audioop
+import click
+import math
 
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
+SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
+
+CALIBRATION_TIME_IN_SECONDS = 60
+
+CALIBRATION_INTRO_MESSAGE = """
+We do some math to convert microphone input into decibles.
+However, the result needs to be calibrated to be accurate.
+
+How many decibles should we add to the calculated value to 
+determine the decibles of the sound that is hitting your mic?
+
+When you are ready, we will begin recording and we'll output
+the calculated decible value.  Determine how many decibles
+to add to this output to achieve the following:
+
+   - Quiet Room: 30-35 dB
+   - Soft Conversation: 55 db
+   - Talking Directly Into Mic: 70-80 db
+
+We'll stop after a minute.  
+
+Call this function again setting `offset_to_computed_decibles`
+to your best guess.  Rinse-and-repeat until you've determine
+the best offset.
+
+Press any key to start…
+"""
+
+"\n\n\n\n\n\n"
+
+def calibrate_decibles(offset_to_computed_decibles=0):
+    
+    # Instructions to user.
+    click.pause(CALIBRATION_INTRO_MESSAGE)
+
+    # Open the audio stream and start recording right away.
+    pyaudio_instance = pyaudio.PyAudio()
+    pyaudio_input_stream = pyaudio_instance.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=FRAMES_PER_SECOND,
+        input=True,
+        frames_per_buffer=FRAMES_PER_BUFFER,
+        start=True,
+    )
+
+    elapsed_seconds = 0
+
+    while (elapsed_seconds < CALIBRATION_TIME_IN_SECONDS)
+        
+        # Read from the input/mic stream, wait until buffer is full before returning.
+        recorded_input_data = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
+        elapsed_seconds += SECONDS_IN_BUFFER
+
+        # Calculate decibles of recording to quantify the loudness
+        rms_of_recorded_input_data = audioop.rms(recorded_input_data, 2)
+        decibles = 20 * math.log10(rms_of_recorded_input_data / 32768.0)
+        decibles = decibles + offset_to_computed_decibles
+    
+        # Output computed decibles to user.
+        print(f"decibles is {dB}")
+
+    # Cleanup
+    pyaudio_input_stream.stop_stream()
+    pyaudio_input_stream.close()
+    pyaudio_instance.terminate()
 
 def live_speech(wake_word_max_length_in_seconds=1.5):
     global ambient_detected
     global rms_that_indicates_speech
 
-    seconds_per_buffer = FRAMES_PER_BUFFER/FRAMES_PER_SECOND
+    SECONDS_IN_BUFFER = FRAMES_PER_BUFFER/FRAMES_PER_SECOND
 
     audio = pyaudio.PyAudio()
 
@@ -45,7 +110,7 @@ def live_speech(wake_word_max_length_in_seconds=1.5):
         # Will wait until buffer is full before returning.
         prior_recording = recording
         recording = stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
-        recorded_seconds += seconds_per_buffer
+        recorded_seconds += SECONDS_IN_BUFFER
 
         # Calculate RMS of recording to quantify the loudness
         rms_of_recording = audioop.rms(recording, 2)
@@ -75,7 +140,7 @@ def live_speech(wake_word_max_length_in_seconds=1.5):
             is_recording = True
             frames.append(prior_recording)
             frames.append(recording)
-            recorded_seconds = seconds_per_buffer
+            recorded_seconds = SECONDS_IN_BUFFER
             print("recording")
         else:
             recorded_seconds = 0

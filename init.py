@@ -1,18 +1,20 @@
 import json
 
-from recorder import live_speech
+from recorder import live_speech, calibrate_decibles
 
-wakeup_words = []
+calibrate_decibles()
 
-for i in range(10):
-    print("Please say the wakeup keyphrase")
-    for phrase in live_speech():
-        print(f"Heard '{str(phrase)}'\n")
-        wakeup_words.append(phrase)
-        break
+# wakeup_words = []
 
-with open("wakeup_words.json", "w") as f:
-    json.dump(list(set(wakeup_words)), f)
+# for i in range(10):
+#     print("Please say the wakeup keyphrase")
+#     for phrase in live_speech():
+#         print(f"Heard '{str(phrase)}'\n")
+#         wakeup_words.append(phrase)
+#         break
 
-print("Recognition finished")
+# with open("wakeup_words.json", "w") as f:
+#     json.dump(list(set(wakeup_words)), f)
+
+# print("Recognition finished")
 
