@@ -79,7 +79,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                         wf.writeframes(pcm)
                     tmp.flush()
                     tmp.seek(0)                 
-                result = WHISPER_MODEL.transcribe(tmp.name, fp16=False)
+                    result = WHISPER_MODEL.transcribe(tmp.name, fp16=False)
                 end = time.time()
                 length = end - start
                 print("It took", length, "seconds!")
