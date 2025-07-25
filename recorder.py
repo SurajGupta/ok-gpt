@@ -71,7 +71,8 @@ def calibrate_decibles(offset_to_computed_decibles=0):
         # Calculate decibles of recording to quantify the loudness
         rms_of_recorded_input_data = audioop.rms(recorded_input_data, 2)
         decibles = 20 * math.log10(rms_of_recorded_input_data / 32768.0)
-        decibles = decibles + offset_to_computed_decibles
+        scale   = (80.0 - 35.0) / (offset_to_computed_decibles - 35.0)
+        decibles = decibles * scale + 80.0
     
         # Output computed decibles to user.
         print(f"calculated decibles: {round(decibles)}")
