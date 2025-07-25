@@ -88,7 +88,7 @@ def calibrate_decibles(offset_to_computed_decibles=0):
             decibles = (decibles * offset_scale) + TALKING_DIRECTLY_INTO_MIC_DECIBLES
 
         # Output computed decibles to user.
-        sys.stdout.write("\r" + render_decible_meter(round(decibles)))
+        sys.stdout.write("\r" + _render_decible_meter(round(decibles)))
         sys.stdout.flush()
 
     # Cleanup
@@ -96,26 +96,11 @@ def calibrate_decibles(offset_to_computed_decibles=0):
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-def render_decible_meter(decibles):
-    # clamp
-    x = max(DECIBLE_METER_MIN_DB, min(DECIBLE_METER_MAX_DB, decibles))
-
-    # fill ratio
-    f = (x - DECIBLE_METER_MIN_DB) / (DECIBLE_METER_MAX_DB - DECIBLE_METER_MIN_DB)
-    filled = int(f * DECIBLE_METER_BAR_WIDTH)
-    bar = "█" * filled + "─" * (DECIBLE_METER_BAR_WIDTH - filled)
-    return f"[{bar}] {decibles:5.1f} dB"
-
 def live_speech(wake_word_max_length_in_seconds=1.5):
-    global ambient_detected
-    global rms_that_indicates_speech
-
-    SECONDS_IN_BUFFER = FRAMES_PER_BUFFER/FRAMES_PER_SECOND
-
-    audio = pyaudio.PyAudio()
 
     # Open the audio stream and start recording right away.
-    stream = audio.open(
+    pyaudio_instance = pyaudio.PyAudio()
+    pyaudio_input_stream = pyaudio_instance.open(
         format=pyaudio.paInt16,
         channels=1,
         rate=FRAMES_PER_SECOND,
@@ -125,7 +110,6 @@ def live_speech(wake_word_max_length_in_seconds=1.5):
     )
 
     frames = []
-
     is_recording = False
     recorded_seconds = 0
     recording = 0
@@ -134,7 +118,7 @@ def live_speech(wake_word_max_length_in_seconds=1.5):
         # Read from the input/mic stream.  
         # Will wait until buffer is full before returning.
         prior_recording = recording
-        recording = stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
+        recording = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
         recorded_seconds += SECONDS_IN_BUFFER
 
         # Calculate RMS of recording to quantify the loudness
@@ -170,7 +154,17 @@ def live_speech(wake_word_max_length_in_seconds=1.5):
         else:
             recorded_seconds = 0
 
-    # TODO: do these when breaking from generator
-    stream.stop_stream()
-    stream.close()
-    audio.terminate()
+    # Cleanup
+    pyaudio_input_stream.stop_stream()
+    pyaudio_input_stream.close()
+    pyaudio_instance.terminate()
+
+def _render_decible_meter(decibles):
+    # clamp
+    x = max(DECIBLE_METER_MIN_DB, min(DECIBLE_METER_MAX_DB, decibles))
+
+    # fill ratio
+    f = (x - DECIBLE_METER_MIN_DB) / (DECIBLE_METER_MAX_DB - DECIBLE_METER_MIN_DB)
+    filled = int(f * DECIBLE_METER_BAR_WIDTH)
+    bar = "█" * filled + "─" * (DECIBLE_METER_BAR_WIDTH - filled)
+    return f"[{bar}] {decibles:5.1f} dB"
