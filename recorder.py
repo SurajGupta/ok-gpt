@@ -80,6 +80,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 frames = []
         elif (rms_of_recording > rms_that_indicates_speech):
             is_recording = True
+            frames.append(recording)
             recorded_seconds = seconds_per_buffer
             print("recording")
         else:
