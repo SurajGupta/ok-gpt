@@ -69,18 +69,27 @@ def live_speech(wake_word_max_length_in_seconds=2):
             if (recorded_seconds >= wake_word_max_length_in_seconds):
                 is_recording = False
                 
+                start = time.time()
                 pcm = b''.join(frames)
                 the_audio = np.frombuffer(pcm, dtype=np.int16)
                 the_audio = the_audio.astype(np.float32) / 32768.0
                 result  = WHISPER_MODEL.transcribe(the_audio, fp16=False)
+                end = time.time()
+                length = end - start
+                print("It took", length, "seconds!")
+
                 print(result["text"].strip())
 
+                start = time.time()
                 wf = wave.open("audio.wav", 'wb')
                 wf.setnchannels(1)
                 wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
                 wf.setframerate(FRAMES_PER_SECOND)
                 wf.writeframes(b''.join(frames))
                 wf.close()
+                end = time.time()
+                length = end - start
+                print("It took", length, "seconds!")
 
                 result = WHISPER_MODEL.transcribe(
                     "audio.wav",
