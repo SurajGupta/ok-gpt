@@ -83,6 +83,7 @@ def calibrate_decibles(offset_to_computed_decibles=0):
         # Output computed decibles to user.
         sys.stdout.write("\r" + render_meter(decibles))
         sys.stdout.flush()
+        time.sleep(0.05)
         # print(f"calculated decibles: {round(decibles)}")
 
     # Cleanup
