@@ -10,7 +10,7 @@ import tempfile
 ambient_detected = False
 rms_that_indicates_speech = 500
 
-WHISPER_MODEL = whisper.load_model("large")
+WHISPER_MODEL = whisper.load_model("tiny.en")
 
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
@@ -47,7 +47,9 @@ def live_speech(wake_word_max_length_in_seconds=2):
         # Calculate RMS of recording to quantify the loudness
         rms_of_recording = audioop.rms(recording, 2)
 
-        print(f"RMS is {rms_of_recording}")
+        # print(f"RMS is {rms_of_recording}")
+        decibles = 20 * math.log10(rms_of_recording)
+        print(f"decibles is {decibles}")
 
         # At startup, determine the ambient sound level and use that to determine
         # what the level will be considered speech
