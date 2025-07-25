@@ -39,7 +39,7 @@ def live_speech(wake_word_max_length_in_seconds=2):
     while True:
         # Read from the input/mic stream.  
         # Will wait until buffer is full before returning.
-        recording = stream.read(FRAMES_PER_BUFFER)
+        recording = stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
         recorded_seconds += seconds_per_buffer
         print(f"Seconds per buffer {seconds_per_buffer}")
 
