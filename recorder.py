@@ -50,12 +50,12 @@ def live_speech(wake_word_max_length_in_seconds=2):
 
         # print(f"RMS is {rms_of_recording}")
         dBFS = 20 * math.log10(rms_of_recording / 32768.0)
-        DB_OFFSET = 50
+        DB_OFFSET = 70
         dB   = dBFS + DB_OFFSET
     
         print(f"decibles is {dB}")
 
-        db_that_indicates_speech = 40
+        db_that_indicates_speech = 50
 
         if is_recording:
             frames.append(recording)
