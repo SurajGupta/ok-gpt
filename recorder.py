@@ -88,14 +88,14 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 wf.setframerate(FRAMES_PER_SECOND)
                 wf.writeframes(b''.join(frames))
                 wf.close()
-                end = time.time()
-                length = end - start
-                print("It took", length, "seconds!")
-
                 result = WHISPER_MODEL.transcribe(
                     "audio.wav",
                     fp16=False
                 )
+                end = time.time()
+                length = end - start
+                print("It took", length, "seconds!")
+
                 print(result["text"].strip())
 
                 os.remove("audio.wav")
