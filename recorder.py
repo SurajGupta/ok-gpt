@@ -74,7 +74,7 @@ def calibrate_decibles(offset_to_computed_decibles=0):
         decibles = decibles + offset_to_computed_decibles
     
         # Output computed decibles to user.
-        print(f"decibles is {dB}")
+        print(f"calculated decibles: {round(decibles)}")
 
     # Cleanup
     pyaudio_input_stream.stop_stream()
