@@ -78,10 +78,10 @@ def live_speech(wake_word_max_length_in_seconds=2):
                         wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(16000)
                         wf.writeframes(pcm)
                     tmp.seek(0)                     # rewind so ffmpeg can read
+                result = WHISPER_MODEL.transcribe(tmp, fp16=False)
                 end = time.time()
                 length = end - start
                 print("It took", length, "seconds!")
-                result = WHISPER_MODEL.transcribe(tmp)
                 print(result["text"].strip())
 
                 start = time.time()
@@ -92,7 +92,6 @@ def live_speech(wake_word_max_length_in_seconds=2):
                 end = time.time()
                 length = end - start
                 print("It took", length, "seconds!")
-
                 print(result["text"].strip())
 
                 start = time.time()
