@@ -7,6 +7,7 @@ import math
 import sys
 import json
 from pathlib import Path
+import re
 
 # Constants
 WHISPER_MODEL = whisper.load_model("tiny.en")
@@ -196,7 +197,7 @@ def establish_wake_words(offset_to_computed_decibles):
     # Instructions to user.
     click.pause(ESTABLISH_WAKE_WORDS_INTRO_MESSAGE)
     
-    wake_words = []
+    sampled_wake_words = []
 
     wake_words_generator = listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles, 
@@ -207,7 +208,7 @@ def establish_wake_words(offset_to_computed_decibles):
         for i in range(WAKE_WORD_SAMPLES):
             # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
             phrase = next(wake_words_generator)  
-            wake_words.append(phrase)
+            sampled_wake_words.append(phrase)
     finally:
         # Now we tear down the generator (runs its finally:)
         wake_words_generator.close()
@@ -219,11 +220,13 @@ def establish_wake_words(offset_to_computed_decibles):
     else:
         saved_wake_words = []
 
-    # Merge in-memory list and de‑dupe
-    combined = list(set(saved_wake_words) | set(wake_words))
+    # Clean *each* phrase, de-dupe, and sort
+    wake_words_to_save = sorted(
+        { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
+    )
 
     # Overwrite with the updated list
-    wake_words_json_file_path.write_text(json.dumps(combined, indent=2))
+    wake_words_json_file_path.write_text(json.dumps(wake_words_to_save, indent=2))
 
     print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
@@ -278,3 +281,18 @@ def _check_offset_to_computed_decibles(offset_to_computed_decibles):
 
     if (offset_to_computed_decibles <= 0):
         raise ValueError(f"'offset_to_computed_decibles' must be >= 0, got {x}.  Microphone was not calibrated.")
+
+def _clean_wake_word_phrase(s: str) -> str:
+    # keep only alphanumeric or space
+    cleaned = "".join(c for c in s if c.isalnum() or c == " ")
+
+    # lower case
+    cleaned = cleaned.lower()
+
+    # collapse runs of spaces
+    cleaned = " ".join(cleaned.split())
+
+    # trim
+    cleaned = cleaned.strip()
+
+    return cleaned
