@@ -206,19 +206,18 @@ def _calculate_decibles(recorded_input_data, offset_to_computed_decibles):
 def _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number, recorded_text):
     decible_meter = _render_decible_meter(round(decibles))
 
-    recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 15)/2))) + "<< recording >>" if is_recording else ""
-
-    sys.stdout.write("\033[3F")
-    sys.stdout.write("\r\033[K" + recording_state + "\n")
+    sys.stdout.write("\033[2F")
     sys.stdout.write("\r\033[K" + decible_meter + "\n")
 
-    if recorded_text == "":
-        recorded_text_to_write = ""
+    if is_recording:
+        recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 15)/2))) + "<< recording >>"
+    elif recorded_text == "":
+        recording_state = ""
     else:
-        recorded_text_to_write = " "
+        recording_state = " "
         if print_sample_number_when_verbose:
-            recorded_text_to_write = recorded_text_to_write + f"({sample_number}): "
-        recorded_text_to_write = recorded_text_to_write + " \"" + recorded_text + "\""
+            recording_state = recording_state + f"({sample_number}): "
+        recording_state = recording_state + " \"" + recorded_text + "\""
 
-    sys.stdout.write("\r\033[K" + recorded_text_to_write + "\n")
+    sys.stdout.write("\r\033[K" + recording_state + "\n")
     sys.stdout.flush()
