@@ -203,7 +203,7 @@ def _calculate_decibles(recorded_input_data, offset_to_computed_decibles):
 
     return decibles
 
-def _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number)
+def _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number):
     decible_meter = _render_decible_meter(round(decibles))
 
     recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 15)/2))) + "<< recording >>" if is_recording else ""
