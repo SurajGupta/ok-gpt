@@ -167,7 +167,7 @@ def listen_for_and_transcribe_potential_wake_word(
                 recorded_frames.append(prior_buffered_input_data)
                 recorded_frames.append(buffered_input_data)
                 recorded_seconds = 2 * SECONDS_IN_BUFFER
-
+                recorded_text = ""
                 # print("recording started")
             else:
                 # We aren't recording and shouldn't start.
