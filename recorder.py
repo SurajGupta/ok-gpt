@@ -130,20 +130,7 @@ def listen_for_and_transcribe_potential_wake_word(
             
             # Output computed decibles, recording status, and last transcription.
             if verbose:
-                decible_meter = _render_decible_meter(round(decibles))
-                recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 15)/2))) + "<< recording >>" if is_recording else ""
-                sys.stdout.write("\033[3F")
-                sys.stdout.write("\r\033[K" + recording_state + "\n")
-                sys.stdout.write("\r\033[K" + decible_meter + "\n")
-                if recorded_text == "":
-                    recorded_text_to_write = ""
-                else:
-                    recorded_text_to_write = " "
-                    if print_sample_number_when_verbose:
-                        recorded_text_to_write = recorded_text_to_write + f"({sample_number}): "
-                    recorded_text_to_write = recorded_text_to_write + " \"" + recorded_text + "\""
-                sys.stdout.write("\r\033[K" + recorded_text_to_write + "\n")
-                sys.stdout.flush()
+                _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number)
 
             # If we are recording then determine if we are done recording.
             if is_recording:
@@ -215,3 +202,23 @@ def _calculate_decibles(recorded_input_data, offset_to_computed_decibles):
         decibles = (decibles * offset_scale) + TALKING_DIRECTLY_INTO_MIC_DECIBLES
 
     return decibles
+
+def _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number)
+    decible_meter = _render_decible_meter(round(decibles))
+
+    recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 15)/2))) + "<< recording >>" if is_recording else ""
+
+    sys.stdout.write("\033[3F")
+    sys.stdout.write("\r\033[K" + recording_state + "\n")
+    sys.stdout.write("\r\033[K" + decible_meter + "\n")
+
+    if recorded_text == "":
+        recorded_text_to_write = ""
+    else:
+        recorded_text_to_write = " "
+        if print_sample_number_when_verbose:
+            recorded_text_to_write = recorded_text_to_write + f"({sample_number}): "
+        recorded_text_to_write = recorded_text_to_write + " \"" + recorded_text + "\""
+
+    sys.stdout.write("\r\033[K" + recorded_text_to_write + "\n")
+    sys.stdout.flush()
