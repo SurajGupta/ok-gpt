@@ -85,7 +85,8 @@ def calibrate_decibles(offset_to_computed_decibles=0):
 def listen_for_and_transcribe_potential_wake_word(
         offset_to_computed_decibles,
         wake_word_max_length_in_seconds=1.5,
-        decibles_that_indicate_speech=50):
+        decibles_that_indicate_speech=50,
+        verbose=False):
 
     # Check offset_to_computed_decibles
     if not isinstance(offset_to_computed_decibles, (int, float)):
@@ -123,7 +124,15 @@ def listen_for_and_transcribe_potential_wake_word(
 
             # Calculate decibles of audio that was in the buffer.
             decibles = _calculate_decibles(buffered_input_data, offset_to_computed_decibles)
-            print(f"decibles is {decibles}")
+            
+            # Output computed decibles and recording status.
+            if verbose:
+                decible_meter = _render_decible_meter(round(decibles))
+                recording_state = "...recording..." if is_recording else ""
+                sys.stdout.write("\033[2F")
+                sys.stdout.write("\r\033[K" + state + "\n")
+                sys.stdout.write("\r\033[K" + bar + "\n")
+                sys.stdout.flush()
 
             # If we are recording then determine if we are done recording.
             if is_recording:
@@ -156,7 +165,7 @@ def listen_for_and_transcribe_potential_wake_word(
                 recorded_frames.append(buffered_input_data)
                 recorded_seconds = 2 * SECONDS_IN_BUFFER
 
-                print("recording")
+                # print("recording started")
             else:
                 # We aren't recording and shouldn't start.
                 recorded_seconds = 0
