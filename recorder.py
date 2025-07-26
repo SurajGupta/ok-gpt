@@ -86,7 +86,8 @@ def listen_for_and_transcribe_potential_wake_word(
         offset_to_computed_decibles,
         wake_word_max_length_in_seconds=1.5,
         decibles_that_indicate_speech=50,
-        verbose=False):
+        verbose=False,
+        print_sample_number_when_verbose=False):
 
     # Check offset_to_computed_decibles
     if not isinstance(offset_to_computed_decibles, (int, float)):
@@ -114,6 +115,7 @@ def listen_for_and_transcribe_potential_wake_word(
     buffered_input_data = b''
     recorded_frames = []
     recorded_text = ""
+    sample_number = 0
     
     try:
         while True:
@@ -136,7 +138,11 @@ def listen_for_and_transcribe_potential_wake_word(
                 if recorded_text == "":
                     recorded_text_to_write = ""
                 else:
-                    recorded_text_to_write = " \"" + recorded_text + "\""
+                    recorded_text_to_write = ""
+                    if print_sample_number_when_verbose:
+                        sample_number = sample_number + 1
+                        recorded_text_to_write = "f({sample_number}): "
+                    recorded_text_to_write = recorded_text_to_write + " \"" + recorded_text + "\""
                 sys.stdout.write("\r\033[K" + recorded_text_to_write + "\n")
                 sys.stdout.flush()
 
