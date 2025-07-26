@@ -86,9 +86,10 @@ def calibrate_decibles(offset_to_computed_decibles=0):
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-def detect_wake_word(
+def listen_for_and_transcribe_potential_wake_word(
         offset_to_computed_decibles,
-        wake_word_max_length_in_seconds=1.5):
+        wake_word_max_length_in_seconds=1.5,
+        decibles_that_indicate_speech=50):
 
     # Check offset_to_computed_decibles
     if not isinstance(offset_to_computed_decibles, (int, float)):
@@ -108,50 +109,60 @@ def detect_wake_word(
         start=True,
     )
 
-    frames = []
+    # In a loop, wait until input data exceeds some threshold decibles, then record.
+    # Record until we hit some threshold seconds that cover the longest possible time
+    # that the wake word is uttered.  Then perform speach-to-text and yield the text.
     is_recording = False
     recorded_seconds = 0
-    recording = 0
+    buffered_input_data = 0
+    recorded_frames = []
     
     try:
         while True:
             # Read from the input/mic stream.  
             # Will wait until buffer is full before returning.
-            prior_recording = recording
-            recording = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
+            prior_buffered_input_data = buffered_input_data
+            buffered_input_data = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
             recorded_seconds += SECONDS_IN_BUFFER
 
-            # Calculate RMS of recording to quantify the loudness
-            rms_of_recording = audioop.rms(recording, 2)
+            # Calculate decibles of audio that was in the buffer.
+            decibles = _calculate_decibles(buffered_input_data, offset_to_computed_decibles):
+            print(f"decibles is {decibles}")
 
-            # print(f"RMS is {rms_of_recording}")
-            dBFS = 20 * math.log10(rms_of_recording / 32768.0)
-            DB_OFFSET = 70
-            dB   = dBFS + DB_OFFSET
-        
-            print(f"decibles is {dB}")
-
-            db_that_indicates_speech = 55
-
+            # If we are recording then determine if we are done recording.
             if is_recording:
-                frames.append(recording)
+
+                # Append buffered input to recorded frames.
+                recorded_frames.append(buffered_input_data)
+
+                # Have we been recording for enough time?
                 if (recorded_seconds >= wake_word_max_length_in_seconds):
+                    
+                    # Stop recording
                     is_recording = False
                     
-                    pcm = b''.join(frames)
-                    the_audio = np.frombuffer(pcm, dtype=np.int16)
-                    the_audio = the_audio.astype(np.float32) / 32768.0
-                    result  = WHISPER_MODEL.transcribe(the_audio, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
+                    # Perform in-memory speach-to-text
+                    pcm = b''.join(recorded_frames)
+                    recording = np.frombuffer(pcm, dtype=np.int16)
+                    recording = recording.astype(np.float32) / 32768.0
+                    transcription  = WHISPER_MODEL.transcribe(recording, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
 
-                    yield result["text"].strip()
-                    frames = []
-            elif (dB > db_that_indicates_speech):
+                    # Yield the transcription text and clear the recorded frames.
+                    yield transcription["text"].strip()
+                    recorded_frames = []
+            elif (decibles > decibles_that_indicate_speech):
+                # Speech detected; start recording.
                 is_recording = True
-                frames.append(prior_recording)
-                frames.append(recording)
-                recorded_seconds = SECONDS_IN_BUFFER
+
+                # The prior buffer might contain some speech we need, 
+                # so record it along with the current buffer.
+                recorded_frames.append(prior_buffered_input_data)
+                recorded_frames.append(buffered_input_data)
+                recorded_seconds = 2 * SECONDS_IN_BUFFER
+
                 print("recording")
             else:
+                # We aren't recording and shouldn't start.
                 recorded_seconds = 0
     finally:
         # Cleanup when generator closes
