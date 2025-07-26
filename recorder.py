@@ -136,7 +136,7 @@ def listen_for_and_transcribe_potential_wake_word(
                 if recorded_text == "":
                     recorded_text_to_write = ""
                 else:
-                    recorded_text_to_write = "\"" + recorded_text + "\""
+                    recorded_text_to_write = " \"" + recorded_text + "\""
                 sys.stdout.write("\r\033[K" + recorded_text_to_write + "\n")
                 sys.stdout.flush()
 
