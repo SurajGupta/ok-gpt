@@ -126,7 +126,7 @@ def listen_for_and_transcribe_potential_wake_word(
             # Calculate decibles of audio that was in the buffer.
             decibles = _calculate_decibles(buffered_input_data, offset_to_computed_decibles)
             
-            # Output computed decibles and recording status.
+            # Output computed decibles, recording status, and last transcription.
             if verbose:
                 decible_meter = _render_decible_meter(round(decibles))
                 recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 15)/2))) + "<< recording >>" if is_recording else ""
@@ -137,7 +137,7 @@ def listen_for_and_transcribe_potential_wake_word(
                     recorded_text_to_write = ""
                 else:
                     recorded_text_to_write = "\"" + recorded_text + "\""
-                sys.stdout.write("\r\033[K" + recorded_text + "\n")
+                sys.stdout.write("\r\033[K" + recorded_text_to_write + "\n")
                 sys.stdout.flush()
 
             # If we are recording then determine if we are done recording.
