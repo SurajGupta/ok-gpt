@@ -21,7 +21,7 @@ NORMAL_CONVERSATION_DECIBLES = 55
 TALKING_DIRECTLY_INTO_MIC_DECIBLES = 75
 MIN_DECIBLES_BEFORE_SCALING_OFFSET = 20
 WAKE_WORD_SAMPLES = 10
-WAKE_WORDS_JSON_FILE_NAME = "wakeup_words.json"
+WAKE_WORDS_JSON_FILE_NAME = "wake_words.json"
 
 CALIBRATION_INTRO_MESSAGE = f"""
 We do some math to convert microphone input into decibles.
@@ -223,7 +223,7 @@ def establish_wake_words(offset_to_computed_decibles):
     combined = list(set(saved_wake_words) | set(wake_words))
 
     # Overwrite with the updated list
-    path.write_text(json.dumps(combined, indent=2))
+    wake_words_json_file_path.write_text(json.dumps(combined, indent=2))
 
     print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
