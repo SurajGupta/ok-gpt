@@ -9,7 +9,7 @@ wakeup_words = []
 generator = listen_for_and_transcribe_potential_wake_word(65, verbose = True, print_sample_number_when_verbose= True)
 
 try:
-    for i in range(10):
+    for i in range(5):
         # print("Please say the wakeup keyphrase")
         # this will block until live_speech yields a phrase
         phrase = next(generator)  
