@@ -141,7 +141,7 @@ def listen_for_and_transcribe_potential_wake_word(
                     recorded_text_to_write = ""
                     if print_sample_number_when_verbose:
                         sample_number = sample_number + 1
-                        recorded_text_to_write = "f({sample_number}): "
+                        recorded_text_to_write = f"({sample_number}): "
                     recorded_text_to_write = recorded_text_to_write + " \"" + recorded_text + "\""
                 sys.stdout.write("\r\033[K" + recorded_text_to_write + "\n")
                 sys.stdout.flush()
