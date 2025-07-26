@@ -113,6 +113,7 @@ def listen_for_and_transcribe_potential_wake_word(
     recorded_seconds = 0
     buffered_input_data = b''
     recorded_frames = []
+    recorded_text = ""
     
     try:
         while True:
@@ -132,6 +133,7 @@ def listen_for_and_transcribe_potential_wake_word(
                 sys.stdout.write("\033[2F")
                 sys.stdout.write("\r\033[K" + recording_state + "\n")
                 sys.stdout.write("\r\033[K" + decible_meter + "\n")
+                sys.stdout.write("\r\033[K" + recorded_text + "\n")
                 sys.stdout.flush()
 
             # If we are recording then determine if we are done recording.
@@ -153,7 +155,8 @@ def listen_for_and_transcribe_potential_wake_word(
                     transcription  = WHISPER_MODEL.transcribe(recording, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
 
                     # Yield the transcription text and clear the recorded frames.
-                    yield transcription["text"].strip()
+                    recorded_text = transcription["text"].strip()
+                    yield recorded_text
                     recorded_frames = []
             elif (decibles > decibles_that_indicate_speech):
                 # Speech detected; start recording.

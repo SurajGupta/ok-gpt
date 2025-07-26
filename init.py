@@ -10,10 +10,10 @@ generator = listen_for_and_transcribe_potential_wake_word(65, verbose = True)
 
 try:
     for i in range(10):
-        print("Please say the wakeup keyphrase")
+        # print("Please say the wakeup keyphrase")
         # this will block until live_speech yields a phrase
         phrase = next(generator)  
-        print(f"Heard '{phrase}'\n")
+        # print(f"Heard '{phrase}'\n")
         wakeup_words.append(phrase)
 finally:
     # now we tear down the generator (runs its finally:)
