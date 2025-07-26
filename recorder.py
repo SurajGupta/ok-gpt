@@ -214,7 +214,7 @@ def _write_transcription_verbose_output(decibles, is_recording, print_sample_num
     sys.stdout.write("\r\033[K" + decible_meter + "\n")
 
     if is_recording:
-        recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 17)/2))) + "<< recording >>"
+        recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 13)/2))) + "<< recording >>"
     elif recorded_text == "":
         recording_state = ""
     else:
