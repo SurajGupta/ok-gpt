@@ -1,8 +1,9 @@
 import json
 
-from recorder import live_speech, calibrate_decibles
+from recorder import calibrate_decibles, listen_for_and_transcribe_potential_wake_word
 
-calibrate_decibles(65)
+# calibrate_decibles(65)
+listen_for_and_transcribe_potential_wake_word(65)
 
 # wakeup_words = []
 

@@ -1,17 +1,13 @@
 import whisper
-import wave
-import os
 import numpy as np
-import time
-
-# Constants
-WHISPER_MODEL = whisper.load_model("tiny.en")
-
 import pyaudio
 import audioop
 import click
 import math
 import sys
+
+# Constants
+WHISPER_MODEL = whisper.load_model("tiny.en")
 
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
