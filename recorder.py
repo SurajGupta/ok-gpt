@@ -133,7 +133,7 @@ def listen_for_and_transcribe_potential_wake_word(
                 sys.stdout.write("\033[3F")
                 sys.stdout.write("\r\033[K" + recording_state + "\n")
                 sys.stdout.write("\r\033[K" + decible_meter + "\n")
-                sys.stdout.write("\r\033[K" + recorded_text + "\n")
+                sys.stdout.write("\r\033[K recorded: \"" + recorded_text + "\"\n")
                 sys.stdout.flush()
 
             # If we are recording then determine if we are done recording.
