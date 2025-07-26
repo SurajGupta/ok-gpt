@@ -6,7 +6,7 @@ from recorder import calibrate_decibles, listen_for_and_transcribe_potential_wak
 
 wakeup_words = []
 
-generator = listen_for_and_transcribe_potential_wake_word(65, verbose = True, print_sample_number_when_verbose= True)
+generator = listen_for_and_transcribe_potential_wake_words(65, verbose = True, print_sample_number_when_verbose= True)
 
 try:
     for i in range(5):

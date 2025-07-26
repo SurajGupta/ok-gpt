@@ -1,5 +1,5 @@
 import whisper
-import numpy as np
+import numpy
 import pyaudio
 import audioop
 import click
@@ -44,8 +44,6 @@ the best offset.
 Press any key to start…
 """
 
-"\n\n\n\n\n\n"
-
 def calibrate_decibles(offset_to_computed_decibles=0):
     
     # Instructions to user.
@@ -82,7 +80,7 @@ def calibrate_decibles(offset_to_computed_decibles=0):
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-def listen_for_and_transcribe_potential_wake_word(
+def listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
         wake_word_max_length_in_seconds=1.5,
         decibles_that_indicate_speech=50,
@@ -148,8 +146,8 @@ def listen_for_and_transcribe_potential_wake_word(
 
                     # Perform in-memory speach-to-text
                     pcm = b''.join(recorded_frames)
-                    recording = np.frombuffer(pcm, dtype=np.int16)
-                    recording = recording.astype(np.float32) / 32768.0
+                    recording = numpy.frombuffer(pcm, dtype=numpy.int16)
+                    recording = recording.astype(numpy.float32) / 32768.0
                     transcription  = WHISPER_MODEL.transcribe(recording, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
 
                     # Yield the transcription text and clear the recorded frames.
