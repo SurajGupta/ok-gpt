@@ -190,7 +190,7 @@ def listen_for_and_transcribe_potential_wake_words(
         pyaudio_input_stream.close()
         pyaudio_instance.terminate()
 
-def establish_wake_words(offset_to_computed_decibles)
+def establish_wake_words(offset_to_computed_decibles):
     _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
     # Instructions to user.
@@ -272,7 +272,7 @@ def _write_transcription_verbose_output(decibles, is_recording, print_sample_num
     sys.stdout.write("\r\033[K" + recording_state + "\n")
     sys.stdout.flush()
 
-def _check_offset_to_computed_decibles(offset_to_computed_decibles)
+def _check_offset_to_computed_decibles(offset_to_computed_decibles):
     if not isinstance(offset_to_computed_decibles, (int, float)):
         raise TypeError(f"'offset_to_computed_decibles' must be a number, got {type(offset_to_computed_decibles).__name__!r}")
 
