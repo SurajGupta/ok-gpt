@@ -122,7 +122,7 @@ def listen_for_and_transcribe_potential_wake_word(
             recorded_seconds += SECONDS_IN_BUFFER
 
             # Calculate decibles of audio that was in the buffer.
-            decibles = _calculate_decibles(buffered_input_data, offset_to_computed_decibles):
+            decibles = _calculate_decibles(buffered_input_data, offset_to_computed_decibles)
             print(f"decibles is {decibles}")
 
             # If we are recording then determine if we are done recording.
