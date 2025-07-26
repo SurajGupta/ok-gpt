@@ -143,7 +143,9 @@ def listen_for_and_transcribe_potential_wake_word(
                     
                     # Stop recording
                     is_recording = False
-                    
+                    if verbose and print_sample_number_when_verbose:
+                        sample_number += 1
+
                     # Perform in-memory speach-to-text
                     pcm = b''.join(recorded_frames)
                     recording = np.frombuffer(pcm, dtype=np.int16)
@@ -155,8 +157,6 @@ def listen_for_and_transcribe_potential_wake_word(
                     yield recorded_text
                     recorded_frames = []
 
-                    if verbose and print_sample_number_when_verbose:
-                        sample_number += 1
             elif (decibles > decibles_that_indicate_speech):
                 # Speech detected; start recording.
                 is_recording = True
