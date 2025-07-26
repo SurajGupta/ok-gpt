@@ -6,16 +6,20 @@ from recorder import calibrate_decibles, listen_for_and_transcribe_potential_wak
 
 wakeup_words = []
 
-for i in range(10):
-    print("Please say the wakeup keyphrase")
-    generator = listen_for_and_transcribe_potential_wake_word(65)
-    try:
-        for phrase in generator:
-            print(f"Heard '{str(phrase)}'\n")
-            wakeup_words.append(phrase)
-            break
-    finally:
-        generator.close()
+generator = listen_for_and_transcribe_potential_wake_word(65)
+
+try:
+    for i in range(10):
+        print("Please say the wakeup keyphrase")
+        # this will block until live_speech yields a phrase
+        phrase = next(generator)  
+        print(f"Heard '{phrase}'\n")
+        wakeup_words.append(phrase)
+finally:
+    # now we tear down the generator (runs its finally:)
+    generator.close()
+    print("live_speech cleaned up, exiting.")
+
 
 # with open("wakeup_words.json", "w") as f:
 #     json.dump(list(set(wakeup_words)), f)
