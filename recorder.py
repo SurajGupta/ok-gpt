@@ -128,7 +128,7 @@ def listen_for_and_transcribe_potential_wake_word(
             # Output computed decibles and recording status.
             if verbose:
                 decible_meter = _render_decible_meter(round(decibles))
-                recording_state = "...recording..." if is_recording else ""
+                recording_state = (" " * ((DECIBLE_METER_BAR_WIDTH - 15)/2)) + "<< recording >>" if is_recording else ""
                 sys.stdout.write("\033[2F")
                 sys.stdout.write("\r\033[K" + recording_state + "\n")
                 sys.stdout.write("\r\033[K" + decible_meter + "\n")
