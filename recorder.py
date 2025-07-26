@@ -110,7 +110,7 @@ def listen_for_and_transcribe_potential_wake_word(
     # that the wake word is uttered.  Then perform speach-to-text and yield the text.
     is_recording = False
     recorded_seconds = 0
-    buffered_input_data = 0
+    buffered_input_data = b''
     recorded_frames = []
     
     try:
