@@ -5,10 +5,11 @@ import audioop
 import click
 import math
 import sys
+import json
+from pathlib import Path
 
 # Constants
 WHISPER_MODEL = whisper.load_model("tiny.en")
-
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
 SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
@@ -19,6 +20,8 @@ QUIET_ROOM_DECIBLES = 30
 NORMAL_CONVERSATION_DECIBLES = 55
 TALKING_DIRECTLY_INTO_MIC_DECIBLES = 75
 MIN_DECIBLES_BEFORE_SCALING_OFFSET = 20
+WAKE_WORD_SAMPLES = 10
+WAKE_WORDS_JSON_FILE_NAME = "wakeup_words.json"
 
 CALIBRATION_INTRO_MESSAGE = f"""
 We do some math to convert microphone input into decibles.
@@ -40,6 +43,19 @@ We'll stop after {CALIBRATION_TIME_IN_SECONDS} seconds.
 Call this function again setting `offset_to_computed_decibles`
 to your best guess.  Rinse-and-repeat until you've determine
 the best offset.
+
+Press any key to start…
+"""
+
+ESTABLISH_WAKE_WORDS_INTRO_MESSAGE = f"""
+Let's establish your wake word phrase.
+Please speak your wake word phrase and then pause for the system 
+to transcribe it (the transcription will be printed to the screen).
+Then repeat your wake word phrase again.  
+
+Keep repeating it until all {WAKE_WORD_SAMPLES} samples are collected.
+
+The samples will be written to:  {WAKE_WORDS_JSON_FILE_NAME}.
 
 Press any key to start…
 """
@@ -87,12 +103,7 @@ def listen_for_and_transcribe_potential_wake_words(
         verbose=False,
         print_sample_number_when_verbose=False):
 
-    # Check offset_to_computed_decibles
-    if not isinstance(offset_to_computed_decibles, (int, float)):
-        raise TypeError(f"'offset_to_computed_decibles' must be a number, got {type(offset_to_computed_decibles).__name__!r}")
-
-    if (offset_to_computed_decibles <= 0):
-        raise ValueError(f"'offset_to_computed_decibles' must be >= 0, got {x}.  Microphone was not calibrated.")
+    _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
     # Open the audio stream and start recording right away.
     pyaudio_instance = pyaudio.PyAudio()
@@ -179,6 +190,43 @@ def listen_for_and_transcribe_potential_wake_words(
         pyaudio_input_stream.close()
         pyaudio_instance.terminate()
 
+def establish_wake_words(offset_to_computed_decibles)
+    _check_offset_to_computed_decibles(offset_to_computed_decibles)
+
+    # Instructions to user.
+    click.pause(ESTABLISH_WAKE_WORDS_INTRO_MESSAGE)
+    
+    wake_words = []
+
+    wake_words_generator = listen_for_and_transcribe_potential_wake_words(
+        offset_to_computed_decibles, 
+        verbose = True, 
+        print_sample_number_when_verbose= True)
+
+    try:
+        for i in range(WAKE_WORD_SAMPLES):
+            # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
+            phrase = next(wake_words_generator)  
+            wake_words.append(phrase)
+    finally:
+        # Now we tear down the generator (runs its finally:)
+        wake_words_generator.close()
+
+    # Load existing file (or start empty)
+    wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
+    if wake_words_json_file_path.exists():
+        saved_wake_words = json.loads(wake_words_json_file_path.read_text())
+    else:
+        saved_wake_words = []
+
+    # Merge in-memory list and de‑dupe
+    combined = list(set(saved_wake_words) | set(wake_words))
+
+    # Overwrite with the updated list
+    path.write_text(json.dumps(combined, indent=2))
+
+    print(f"Captured all samples!  See: {wake_words_json_file_path}")
+
 def _render_decible_meter(decibles):
     # clamp
     x = max(DECIBLE_METER_MIN_DB, min(DECIBLE_METER_MAX_DB, decibles))
@@ -223,3 +271,10 @@ def _write_transcription_verbose_output(decibles, is_recording, print_sample_num
 
     sys.stdout.write("\r\033[K" + recording_state + "\n")
     sys.stdout.flush()
+
+def _check_offset_to_computed_decibles(offset_to_computed_decibles)
+    if not isinstance(offset_to_computed_decibles, (int, float)):
+        raise TypeError(f"'offset_to_computed_decibles' must be a number, got {type(offset_to_computed_decibles).__name__!r}")
+
+    if (offset_to_computed_decibles <= 0):
+        raise ValueError(f"'offset_to_computed_decibles' must be >= 0, got {x}.  Microphone was not calibrated.")
