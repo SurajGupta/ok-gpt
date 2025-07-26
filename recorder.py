@@ -172,6 +172,10 @@ def listen_for_and_transcribe_potential_wake_word(
                 # We aren't recording and shouldn't start.
                 recorded_seconds = 0
     finally:
+        # Write the final transcription
+        if verbose:
+            _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number, recorded_text)
+
         # Cleanup when generator closes
         pyaudio_input_stream.stop_stream()
         pyaudio_input_stream.close()
@@ -210,7 +214,7 @@ def _write_transcription_verbose_output(decibles, is_recording, print_sample_num
     sys.stdout.write("\r\033[K" + decible_meter + "\n")
 
     if is_recording:
-        recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 15)/2))) + "<< recording >>"
+        recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 17)/2))) + "<< recording >>"
     elif recorded_text == "":
         recording_state = ""
     else:
