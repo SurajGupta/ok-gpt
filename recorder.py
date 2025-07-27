@@ -108,6 +108,7 @@ def establish_wake_words(
     
     sampled_wake_words = []
 
+    # Create a generator that yields potential wake words
     wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
         wake_word_max_length_in_seconds,
@@ -116,6 +117,7 @@ def establish_wake_words(
         print_sample_number_when_verbose= True)
 
     try:
+        # Iterate thru the required number of samples and save the spoken wake word phrases
         for i in range(WAKE_WORD_SAMPLES):
             # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
             phrase = next(wake_words_generator)  
@@ -139,9 +141,51 @@ def establish_wake_words(
     wake_words_to_save = sorted(wake_words_to_save)
 
     # Overwrite with the updated list
-    wake_words_json_file_path.write_text(json.dumps(wake_words_to_save, indent=2))
+    wake_words_json_file_path.write_text(
+        json.dumps(wake_words_to_save, indent=2),
+        encoding="utf-8")
 
     print(f"Captured all samples!  See: {wake_words_json_file_path}")
+
+def wait_for_wake_words(
+        offset_to_computed_decibles,
+        wake_word_max_length_in_seconds=1.5,
+        decibles_that_indicate_speech=50,
+        verbose=False):
+    _check_offset_to_computed_decibles(offset_to_computed_decibles)
+
+    # Read wake words from JSON file.
+    wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
+    
+    if not wake_words_json_file_path.exists():
+        raise ValueError(f"Wake words haven't been established.  Can't find file: {WAKE_WORDS_JSON_FILE_NAME}.")
+
+    with file_path.open("r", encoding="utf-8") as f:
+        wake_words_list = json.load(f)   # wake_words is now a Python list of strings
+
+    wake_words_set = set(wake_words_list)
+
+    # Create a generator that yields potential wake words
+    wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
+        offset_to_computed_decibles,
+        wake_word_max_length_in_seconds,
+        decibles_that_indicate_speech,
+        verbose = verbose, 
+        print_sample_number_when_verbose = False)
+
+    try:
+        # Loop until the a wake word is uttered
+        while True:
+            # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
+            possible_wake_word = next(wake_words_generator)
+
+            possible_wake_word = _clean_wake_word_phrase(possible_wake_word)
+
+            if (possible_wake_word in wake_words_set):
+                break
+    finally:
+        # Now we tear down the generator (runs its finally:)
+        wake_words_generator.close()
 
 def _listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
