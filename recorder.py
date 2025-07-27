@@ -133,9 +133,11 @@ def establish_wake_words(
 
     # Clean *each* phrase, de-dupe, and sort
     wake_words_to_save = sorted(
-        s for s in {_clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words}
-        if s
+        { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
     )
+
+    # Remove empty string
+    wake_words_to_save.discard("")
 
     # Overwrite with the updated list
     wake_words_json_file_path.write_text(json.dumps(wake_words_to_save, indent=2))
