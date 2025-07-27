@@ -97,7 +97,10 @@ def calibrate_decibles(offset_to_computed_decibles=0):
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-def establish_wake_words(offset_to_computed_decibles):
+def establish_wake_words(
+        offset_to_computed_decibles,
+        wake_word_max_length_in_seconds=1.5,
+        decibles_that_indicate_speech=50):
     _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
     # Instructions to user.
@@ -105,8 +108,10 @@ def establish_wake_words(offset_to_computed_decibles):
     
     sampled_wake_words = []
 
-    wake_words_generator = listen_for_and_transcribe_potential_wake_words(
-        offset_to_computed_decibles, 
+    wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
+        offset_to_computed_decibles,
+        wake_word_max_length_in_seconds,
+        decibles_that_indicate_speech,
         verbose = True, 
         print_sample_number_when_verbose= True)
 
@@ -136,7 +141,7 @@ def establish_wake_words(offset_to_computed_decibles):
 
     print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
-def listen_for_and_transcribe_potential_wake_words(
+def _listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
         wake_word_max_length_in_seconds=1.5,
         decibles_that_indicate_speech=50,
