@@ -97,6 +97,45 @@ def calibrate_decibles(offset_to_computed_decibles=0):
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
+def establish_wake_words(offset_to_computed_decibles):
+    _check_offset_to_computed_decibles(offset_to_computed_decibles)
+
+    # Instructions to user.
+    click.pause(ESTABLISH_WAKE_WORDS_INTRO_MESSAGE)
+    
+    sampled_wake_words = []
+
+    wake_words_generator = listen_for_and_transcribe_potential_wake_words(
+        offset_to_computed_decibles, 
+        verbose = True, 
+        print_sample_number_when_verbose= True)
+
+    try:
+        for i in range(WAKE_WORD_SAMPLES):
+            # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
+            phrase = next(wake_words_generator)  
+            sampled_wake_words.append(phrase)
+    finally:
+        # Now we tear down the generator (runs its finally:)
+        wake_words_generator.close()
+
+    # Load existing file (or start empty)
+    wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
+    if wake_words_json_file_path.exists():
+        saved_wake_words = json.loads(wake_words_json_file_path.read_text())
+    else:
+        saved_wake_words = []
+
+    # Clean *each* phrase, de-dupe, and sort
+    wake_words_to_save = sorted(
+        { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
+    )
+
+    # Overwrite with the updated list
+    wake_words_json_file_path.write_text(json.dumps(wake_words_to_save, indent=2))
+
+    print(f"Captured all samples!  See: {wake_words_json_file_path}")
+
 def listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
         wake_word_max_length_in_seconds=1.5,
@@ -190,45 +229,6 @@ def listen_for_and_transcribe_potential_wake_words(
         pyaudio_input_stream.stop_stream()
         pyaudio_input_stream.close()
         pyaudio_instance.terminate()
-
-def establish_wake_words(offset_to_computed_decibles):
-    _check_offset_to_computed_decibles(offset_to_computed_decibles)
-
-    # Instructions to user.
-    click.pause(ESTABLISH_WAKE_WORDS_INTRO_MESSAGE)
-    
-    sampled_wake_words = []
-
-    wake_words_generator = listen_for_and_transcribe_potential_wake_words(
-        offset_to_computed_decibles, 
-        verbose = True, 
-        print_sample_number_when_verbose= True)
-
-    try:
-        for i in range(WAKE_WORD_SAMPLES):
-            # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
-            phrase = next(wake_words_generator)  
-            sampled_wake_words.append(phrase)
-    finally:
-        # Now we tear down the generator (runs its finally:)
-        wake_words_generator.close()
-
-    # Load existing file (or start empty)
-    wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
-    if wake_words_json_file_path.exists():
-        saved_wake_words = json.loads(wake_words_json_file_path.read_text())
-    else:
-        saved_wake_words = []
-
-    # Clean *each* phrase, de-dupe, and sort
-    wake_words_to_save = sorted(
-        { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
-    )
-
-    # Overwrite with the updated list
-    wake_words_json_file_path.write_text(json.dumps(wake_words_to_save, indent=2))
-
-    print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
 def _render_decible_meter(decibles):
     # clamp
