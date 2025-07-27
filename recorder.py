@@ -160,7 +160,7 @@ def wait_for_wake_words(
     if not wake_words_json_file_path.exists():
         raise ValueError(f"Wake words haven't been established.  Can't find file: {WAKE_WORDS_JSON_FILE_NAME}.")
 
-    with file_path.open("r", encoding="utf-8") as f:
+    with wake_words_json_file_path.open("r", encoding="utf-8") as f:
         wake_words_list = json.load(f)   # wake_words is now a Python list of strings
 
     wake_words_set = set(wake_words_list)
