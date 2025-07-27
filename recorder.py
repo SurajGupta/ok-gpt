@@ -154,14 +154,14 @@ def wait_for_wake_words(
         verbose=False):
     _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
-    # Read wake words from JSON file.
+    # Read wake words from JSON file into a set
     wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
     
     if not wake_words_json_file_path.exists():
         raise ValueError(f"Wake words haven't been established.  Can't find file: {WAKE_WORDS_JSON_FILE_NAME}.")
 
     with wake_words_json_file_path.open("r", encoding="utf-8") as f:
-        wake_words_list = json.load(f)   # wake_words is now a Python list of strings
+        wake_words_list = json.load(f)
 
     wake_words_set = set(wake_words_list)
 
@@ -189,10 +189,10 @@ def wait_for_wake_words(
 
 def _listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
-        wake_word_max_length_in_seconds=1.5,
-        decibles_that_indicate_speech=50,
-        verbose=False,
-        print_sample_number_when_verbose=False):
+        wake_word_max_length_in_seconds,
+        decibles_that_indicate_speech,
+        verbose,
+        print_sample_number_when_verbose):
 
     _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
