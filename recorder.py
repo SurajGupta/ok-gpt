@@ -64,7 +64,7 @@ The samples will be written to:  {WAKE_WORDS_JSON_FILE_NAME}.
 Press any key to start…
 """
 
-WAKE_WORDS     = ["hey gizmo", "okay computer"]      # canonical list
+WAKE_WORDS     = ["hey jellybot", "okay computer"]      # canonical list
 SAMPLE_RATE    = 16000                               # model default
 BLOCK_SIZE     = 6400                                # 0.4 s / 256 ms
 MODEL_PATH     = "vosk-model-small-en-us-0.15"
