@@ -23,7 +23,7 @@ Then repeat your wake word phrase again.
 
 Keep repeating it until all {WAKE_WORD_SAMPLES} samples are collected.
 
-The samples will be written to:  {WAKE_WORDS_JSON_FILE_NAME}.
+The samples will be written to: {WAKE_WORDS_JSON_FILE_NAME}.
 
 Press any key to start…
 """
@@ -137,22 +137,20 @@ def establish_wake_words():
 
     # Load existing file (or start empty)
     wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
-    # # if wake_words_json_file_path.exists():
-    # #     saved_wake_words = json.loads(wake_words_json_file_path.read_text())
-    # # else:
-    # #     saved_wake_words = []
+    if wake_words_json_file_path.exists():
+        saved_wake_words = json.loads(wake_words_json_file_path.read_text())
+    else:
+        saved_wake_words = []
 
-    # # # Clean *each* phrase, de-dupe, and sort
-    # # wake_words_to_save =  { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
+    # De-dupe, remove empty string and sort
+    wake_words_to_save = set(saved_wake_words + sampled_wake_words)
+    wake_words_to_save.discard("")
+    wake_words_to_save = sorted(wake_words_to_save)
 
-    # # # Remove empty string and sort
-    # # wake_words_to_save.discard("")
-    # # wake_words_to_save = sorted(wake_words_to_save)
-
-    # # # Overwrite with the updated list
-    # # wake_words_json_file_path.write_text(
-    # #     json.dumps(wake_words_to_save, indent=2),
-    # #     encoding="utf-8")
+    # Overwrite with the updated list
+    wake_words_json_file_path.write_text(
+        json.dumps(wake_words_to_save, indent=2),
+        encoding="utf-8")
 
     print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
@@ -334,18 +332,3 @@ def _write_transcription_verbose_output(decibles, is_recording, print_sample_num
 
     sys.stdout.write("\r\033[K" + recording_state + "\n")
     sys.stdout.flush()
-
-def _clean_wake_word_phrase(s: str) -> str:
-    # keep only alphanumeric or space
-    cleaned = "".join(c for c in s if c.isalnum() or c == " ")
-
-    # lower case
-    cleaned = cleaned.lower()
-
-    # collapse runs of spaces
-    cleaned = " ".join(cleaned.split())
-
-    # trim
-    cleaned = cleaned.strip()
-
-    return cleaned
