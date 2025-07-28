@@ -7,14 +7,13 @@ from pathlib import Path
 import click
 
 # Constants
-MODEL_PATH   = "vosk-model-small-en-us-0.15"   # any model works
-MODEL = Model(MODEL_PATH)
 FRAMES_PER_SECOND = 16000 # 16000 Hz
 FRAMES_PER_BUFFER = 2048  # 2048 / 16000 Hz  =  128ms @ 16kHz microphone read
 MAX_INPUT_QUEUE_SIZE_IN_SECONDS = 2
+MAX_INPUT_QUEUE_SIZE = round(MAX_INPUT_QUEUE_SIZE_IN_SECONDS / (FRAMES_PER_BUFFER / FRAMES_PER_SECOND))
+
 WAKE_WORD_SAMPLES = 10
 WAKE_WORDS_JSON_FILE_NAME = "wake_words.json"
-
 ESTABLISH_WAKE_WORDS_INTRO_MESSAGE = f"""
 Let's establish your wake word phrase.
 Please speak your wake word phrase and then pause for the system 
@@ -28,9 +27,9 @@ The samples will be written to: {WAKE_WORDS_JSON_FILE_NAME}.
 Press any key to start…
 """
 
-# Global Logic
-MAX_INPUT_QUEUE_SIZE = round(MAX_INPUT_QUEUE_SIZE_IN_SECONDS / (FRAMES_PER_BUFFER / FRAMES_PER_SECOND))
-SetLogLevel(-1) # Silence vosk logs
+MODEL_PATH   = "vosk-model-small-en-us-0.15"   # any model works
+SetLogLevel(-1) # Silence vosk logs, must be before loading the model
+MODEL = Model(MODEL_PATH)
 
 
 import time
