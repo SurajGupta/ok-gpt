@@ -92,37 +92,38 @@ def establish_wake_words():
 
     # Loop until all samples are collected.
     sampled_wake_words = []
+    
+    try:
+        while True:
+            pcm = audio_queue.get()
 
-    while True:
-        pcm = audio_queue.get()
+            # AcceptWaveform calls Vosk’s endpoint detector on every chunk you feed it.
+            # The method returns True (utterance is finished) when one of Kaldi’s built‑in
+            # silence rules fires.  The rules evaluate the length of silence, the
+            # length of the speech and model output to determine when the utterance is finished.
+            # For wake words (short speech), rule 2 (500ms of silence) wins most often.
+            # Note that for long silences (5s), the recognizer will trigger an endpoint.
+            # So AcceptWaveform does not return False indefinitately.  While the endpoint
+            # detection can be customized, we just use the default config.
+            if kaldi_recognizer.AcceptWaveform(pcm): 
 
-        # AcceptWaveform calls Vosk’s endpoint detector on every chunk you feed it.
-        # The method returns True (utterance is finished) when one of Kaldi’s built‑in
-        # silence rules fires.  The rules evaluate the length of silence, the
-        # length of the speech and model output to determine when the utterance is finished.
-        # For wake words (short speech), rule 2 (500ms of silence) wins most often.
-        # Note that for long silences (5s), the recognizer will trigger an endpoint.
-        # So AcceptWaveform does not return False indefinitately.  While the endpoint
-        # detection can be customized, we just use the default config.
-        if kaldi_recognizer.AcceptWaveform(pcm): 
+                # We could average the confidence values from each word and then compare
+                # against some threshold before accepting the word.  Potential future improvement.
+                recognizer_result = kaldi_recognizer.Result()
+                phrase = json.loads(recognizer_result)["text"].strip().lower()
 
-            # We could average the confidence values from each word and then compare
-            # against some threshold before accepting the word.  Potential future improvement.
-            recognizer_result = kaldi_recognizer.Result()
-            phrase = json.loads(recognizer_result)["text"].strip().lower()
+                # Ignore silence.
+                if phrase:                          
+                    sampled_wake_words.append(phrase)
+                    print(f"({len(sampled_wake_words)}): \"{phrase}\"")
 
-            # Ignore silence.
-            if phrase:                          
-                sampled_wake_words.append(phrase)
-                print(f"({len(sampled_wake_words)}): \"{phrase}\"")
-
-            if (len(sampled_wake_words) >= WAKE_WORD_SAMPLES):
-                break
-
-    # Close out the input stream
-    pyaudio_input_stream.stop_stream()
-    pyaudio_input_stream.close()
-    pyaudio_instance.terminate()
+                if (len(sampled_wake_words) >= WAKE_WORD_SAMPLES):
+                    break
+    finally:
+        # Close out the input stream
+        pyaudio_input_stream.stop_stream()
+        pyaudio_input_stream.close()
+        pyaudio_instance.terminate()
 
     # Load existing file (or start empty)
     wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
