@@ -56,7 +56,7 @@ def establish_wake_words():
     # Create the recognizer.  The grammar argument is optional and we omit it
     # to instruct Vosk to switch to it's full language model.  An open vocabulary
     # gives us discovery: we learn how the model actually hears us.
-    kaldi_recognizer = KaldiRecognizer(model, FRAMES_PER_SECOND)
+    kaldi_recognizer = KaldiRecognizer(MODEL, FRAMES_PER_SECOND)
 
     # We ask for the confidence score to be included with the transcription.
     # The confidence is specified per word, not per phrase and a start/end time
