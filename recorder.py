@@ -4,6 +4,7 @@ import sys
 import queue
 from vosk import Model, KaldiRecognizer
 import math
+from pathlib import Path
 
 # Constants
 MODEL_PATH   = "vosk-model-small-en-us-0.15"   # any model works
@@ -36,7 +37,6 @@ import time
 import numpy
 import audioop
 import click
-from pathlib import Path
 import re
 
 
@@ -101,8 +101,9 @@ def establish_wake_words():
         start=True,
     )
 
-    # Loop until 
-    samples = 0
+    # Loop until all samples are collected.
+    sampled_wake_words = []
+
     while True:
         pcm = audio_queue.get()
 
@@ -115,16 +116,18 @@ def establish_wake_words():
         # So AcceptWaveform does not return False indefinitately.  While the endpoint
         # detection can be customized, we just use the default config.
         if kaldi_recognizer.AcceptWaveform(pcm): 
+
+            # We could average the confidence values from each word and then compare
+            # against some threshold before accepting the word.  Potential future improvement.
             recognizer_result = kaldi_recognizer.Result()
-            wake_word = json.loads(recognizer_result)["text"].strip().lower()
+            phrase = json.loads(recognizer_result)["text"].strip().lower()
 
-            # ignore silence
-            if wake_word:                          
-                samples += 1
-                print(f"{wake_word}")
-                print(recognizer_result)
+            # Ignore silence.
+            if phrase:                          
+                sampled_wake_words.append(phrase)
+                print(f"({len(sampled_wake_words)}): \"{phrase}\"")
 
-            if (samples > WAKE_WORD_SAMPLES):
+            if (len(sampled_wake_words) > WAKE_WORD_SAMPLES):
                 break
 
     # Close out the input stream
@@ -132,46 +135,26 @@ def establish_wake_words():
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-    # sampled_wake_words = []
+    # Load existing file (or start empty)
+    wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
+    # # if wake_words_json_file_path.exists():
+    # #     saved_wake_words = json.loads(wake_words_json_file_path.read_text())
+    # # else:
+    # #     saved_wake_words = []
 
-    # # Create a generator that yields potential wake words
-    # wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
-    #     offset_to_computed_decibles,
-    #     wake_word_max_length_in_seconds,
-    #     decibles_that_indicate_speech,
-    #     verbose = True, 
-    #     print_sample_number_when_verbose= True)
+    # # # Clean *each* phrase, de-dupe, and sort
+    # # wake_words_to_save =  { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
 
-    # try:
-    #     # Iterate thru the required number of samples and save the spoken wake word phrases
-    #     for i in range(WAKE_WORD_SAMPLES):
-    #         # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
-    #         phrase = next(wake_words_generator)  
-    #         sampled_wake_words.append(phrase)
-    # finally:
-    #     # Now we tear down the generator (runs its finally:)
-    #     wake_words_generator.close()
+    # # # Remove empty string and sort
+    # # wake_words_to_save.discard("")
+    # # wake_words_to_save = sorted(wake_words_to_save)
 
-    # # Load existing file (or start empty)
-    # wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
-    # if wake_words_json_file_path.exists():
-    #     saved_wake_words = json.loads(wake_words_json_file_path.read_text())
-    # else:
-    #     saved_wake_words = []
+    # # # Overwrite with the updated list
+    # # wake_words_json_file_path.write_text(
+    # #     json.dumps(wake_words_to_save, indent=2),
+    # #     encoding="utf-8")
 
-    # # Clean *each* phrase, de-dupe, and sort
-    # wake_words_to_save =  { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
-
-    # # Remove empty string and sort
-    # wake_words_to_save.discard("")
-    # wake_words_to_save = sorted(wake_words_to_save)
-
-    # # Overwrite with the updated list
-    # wake_words_json_file_path.write_text(
-    #     json.dumps(wake_words_to_save, indent=2),
-    #     encoding="utf-8")
-
-    # print(f"Captured all samples!  See: {wake_words_json_file_path}")
+    print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
 def wait_for_wake_words(
         offset_to_computed_decibles,
