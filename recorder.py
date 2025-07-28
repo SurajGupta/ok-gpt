@@ -1,52 +1,18 @@
-import whisper
-import numpy
 import pyaudio
-import audioop
-import click
-import math
-import sys
 import json
-from pathlib import Path
-import re
+import sys
+import queue
+from vosk import Model, KaldiRecognizer
+import math
 
 # Constants
-WHISPER_MODEL = whisper.load_model("tiny.en")
+MODEL_PATH   = "vosk-model-small-en-us-0.15"   # any model works
+MODEL = Model(MODEL_PATH)
 FRAMES_PER_SECOND = 16000 # 16000 Hz
-FRAMES_PER_BUFFER = 2000  # 2000 / 16000 Hz  =  125ms @ 16kHz microphone read
-SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
-CALIBRATION_TIME_IN_SECONDS = 30
-DECIBLE_METER_MIN_DB, DECIBLE_METER_MAX_DB = 0, 90
-DECIBLE_METER_BAR_WIDTH = 40
-QUIET_ROOM_DECIBLES = 30
-NORMAL_CONVERSATION_DECIBLES = 55
-TALKING_DIRECTLY_INTO_MIC_DECIBLES = 75
-MIN_DECIBLES_BEFORE_SCALING_OFFSET = 20
+FRAMES_PER_BUFFER = 2048  # 2048 / 16000 Hz  =  128ms @ 16kHz microphone read
+MAX_INPUT_QUEUE_SIZE_IN_SECONDS = 2
 WAKE_WORD_SAMPLES = 10
 WAKE_WORDS_JSON_FILE_NAME = "wake_words.json"
-
-CALIBRATION_INTRO_MESSAGE = f"""
-We do some math to convert microphone input into decibles.
-However, the result needs to be calibrated to be accurate.
-
-How many decibles should we add to the calculated value to 
-determine the decibles of the sound that is hitting your mic?
-
-When you are ready, we will begin recording and we'll output
-the calculated decible value.  Determine how many decibles
-to add to this output to achieve the following:
-
-   - Quiet Room: {QUIET_ROOM_DECIBLES} dB
-   - Normal Conversation: {NORMAL_CONVERSATION_DECIBLES} dB
-   - Talking Directly Into Mic: {TALKING_DIRECTLY_INTO_MIC_DECIBLES} dB
-
-We'll stop after {CALIBRATION_TIME_IN_SECONDS} seconds.
-
-Call this function again setting `offset_to_computed_decibles`
-to your best guess.  Rinse-and-repeat until you've determine
-the best offset.
-
-Press any key to start…
-"""
 
 ESTABLISH_WAKE_WORDS_INTRO_MESSAGE = f"""
 Let's establish your wake word phrase.
@@ -61,12 +27,69 @@ The samples will be written to:  {WAKE_WORDS_JSON_FILE_NAME}.
 Press any key to start…
 """
 
-def calibrate_decibles(offset_to_computed_decibles=0):
-    
-    # Instructions to user.
-    click.pause(CALIBRATION_INTRO_MESSAGE)
+# Calculations
+MAX_INPUT_QUEUE_SIZE = round(MAX_INPUT_QUEUE_SIZE_IN_SECONDS / (FRAMES_PER_BUFFER / FRAMES_PER_SECOND))
 
-    # Open the audio stream and start recording right away.
+
+
+import time
+import numpy
+import audioop
+import click
+from pathlib import Path
+import re
+
+
+
+SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
+DECIBLE_METER_MIN_DB, DECIBLE_METER_MAX_DB = 0, 90
+DECIBLE_METER_BAR_WIDTH = 40
+QUIET_ROOM_DECIBLES = 30
+NORMAL_CONVERSATION_DECIBLES = 55
+TALKING_DIRECTLY_INTO_MIC_DECIBLES = 75
+MIN_DECIBLES_BEFORE_SCALING_OFFSET = 20
+
+
+
+def establish_wake_words():
+
+    # Create the recognizer.  The grammar argument is optional and we omit it
+    # to instruct Vosk to switch to it's full language model.  An open vocabulary
+    # gives us discovery: we learn how the model actually hears us.
+    kaldi_recognizer = KaldiRecognizer(model, FRAMES_PER_SECOND)
+
+    # We ask for the confidence score to be included with the transcription.
+    # The confidence is specified per word, not per phrase and a start/end time
+    # is also included per word.
+    # The confidence will be in the range 0 → 1 (close to 1 ≈ high certainty).
+    # Values are posterior probabilities computed by Kaldi’s decoder; they are 
+    # not strictly calibrated but are useful for relative filtering 
+    # (e.g. discard words whose conf < 0.3).  Output will look something like this:
+    # {
+    #     "text": "hey gizmo",
+    #     "result": [
+    #         { "word": "hey",   "start": 0.12, "end": 0.40, "conf": 0.87 },
+    #         { "word": "gizmo", "start": 0.41, "end": 0.89, "conf": 0.75 }
+    #     ]
+    # }
+    kaldi_recognizer.SetWords(True)
+
+    # Instructions to user.
+    click.pause(ESTABLISH_WAKE_WORDS_INTRO_MESSAGE)
+
+    # Start listening and recording
+    audio_queue = queue.Queue(maxsize=MAX_INPUT_QUEUE_SIZE)
+    def _pyaudio_mic_callback(in_data, frame_count, time_info, status_flags):
+        try:
+            # Immediately raises queue.Full if no slot is free.
+            audio_queue.put_nowait(in_data)
+        except queue.Full:
+            # Drop audio if queue is full
+            pass
+
+        # Tell PortAudio to keep recording
+        return (None, pyaudio.paContinue)
+
     pyaudio_instance = pyaudio.PyAudio()
     pyaudio_input_stream = pyaudio_instance.open(
         format=pyaudio.paInt16,
@@ -74,78 +97,79 @@ def calibrate_decibles(offset_to_computed_decibles=0):
         rate=FRAMES_PER_SECOND,
         input=True,
         frames_per_buffer=FRAMES_PER_BUFFER,
+        stream_callback = _pyaudio_mic_callback,
         start=True,
     )
 
-    # Loop for CALIBRATION_TIME_IN_SECONDS
-    elapsed_seconds = 0
-    while (elapsed_seconds < CALIBRATION_TIME_IN_SECONDS):
-        
-        # Read from the input/mic stream, wait until buffer is full before returning.
-        recorded_input_data = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
-        elapsed_seconds += SECONDS_IN_BUFFER
+    # Loop until 
+    samples = 0
+    while True:
+        pcm = audio_queue.get()
 
-        # Calculate decibles.
-        decibles = _calculate_decibles(recorded_input_data, offset_to_computed_decibles)
+        # AcceptWaveform calls Vosk’s endpoint detector on every chunk you feed it.
+        # The method returns True (utterance is finished) when one of Kaldi’s built‑in
+        # silence rules fires.  The rules evaluate the length of silence, the
+        # length of the speech and model output to determine when the utterance is finished.
+        # For wake words (short speech), rule 2 (500ms of silence) wins most often.
+        # Note that for long silences (5s), the recognizer will trigger an endpoint.
+        # So AcceptWaveform does not return False indefinitately.  While the endpoint
+        # detection can be customized, we just use the default config.
+        if kaldi_recognizer.AcceptWaveform(pcm): 
+            wake_word = json.loads(kaldi_recognizer.Result())["text"].strip().lower()
 
-        # Output computed decibles to user.
-        sys.stdout.write("\r" + _render_decible_meter(round(decibles)))
-        sys.stdout.flush()
+            # ignore silence
+            if wake_word:                          
+                samples += 1
+                print(f"{wake_word}")
 
-    # Cleanup
+            if (samples > WAKE_WORD_SAMPLES):
+                break
+
+    # Close out the input stream
     pyaudio_input_stream.stop_stream()
     pyaudio_input_stream.close()
     pyaudio_instance.terminate()
 
-def establish_wake_words(
-        offset_to_computed_decibles,
-        wake_word_max_length_in_seconds=1.5,
-        decibles_that_indicate_speech=50):
-    _check_offset_to_computed_decibles(offset_to_computed_decibles)
+    # sampled_wake_words = []
 
-    # Instructions to user.
-    click.pause(ESTABLISH_WAKE_WORDS_INTRO_MESSAGE)
-    
-    sampled_wake_words = []
+    # # Create a generator that yields potential wake words
+    # wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
+    #     offset_to_computed_decibles,
+    #     wake_word_max_length_in_seconds,
+    #     decibles_that_indicate_speech,
+    #     verbose = True, 
+    #     print_sample_number_when_verbose= True)
 
-    # Create a generator that yields potential wake words
-    wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
-        offset_to_computed_decibles,
-        wake_word_max_length_in_seconds,
-        decibles_that_indicate_speech,
-        verbose = True, 
-        print_sample_number_when_verbose= True)
+    # try:
+    #     # Iterate thru the required number of samples and save the spoken wake word phrases
+    #     for i in range(WAKE_WORD_SAMPLES):
+    #         # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
+    #         phrase = next(wake_words_generator)  
+    #         sampled_wake_words.append(phrase)
+    # finally:
+    #     # Now we tear down the generator (runs its finally:)
+    #     wake_words_generator.close()
 
-    try:
-        # Iterate thru the required number of samples and save the spoken wake word phrases
-        for i in range(WAKE_WORD_SAMPLES):
-            # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
-            phrase = next(wake_words_generator)  
-            sampled_wake_words.append(phrase)
-    finally:
-        # Now we tear down the generator (runs its finally:)
-        wake_words_generator.close()
+    # # Load existing file (or start empty)
+    # wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
+    # if wake_words_json_file_path.exists():
+    #     saved_wake_words = json.loads(wake_words_json_file_path.read_text())
+    # else:
+    #     saved_wake_words = []
 
-    # Load existing file (or start empty)
-    wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
-    if wake_words_json_file_path.exists():
-        saved_wake_words = json.loads(wake_words_json_file_path.read_text())
-    else:
-        saved_wake_words = []
+    # # Clean *each* phrase, de-dupe, and sort
+    # wake_words_to_save =  { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
 
-    # Clean *each* phrase, de-dupe, and sort
-    wake_words_to_save =  { _clean_wake_word_phrase(w) for w in saved_wake_words + sampled_wake_words }
+    # # Remove empty string and sort
+    # wake_words_to_save.discard("")
+    # wake_words_to_save = sorted(wake_words_to_save)
 
-    # Remove empty string and sort
-    wake_words_to_save.discard("")
-    wake_words_to_save = sorted(wake_words_to_save)
+    # # Overwrite with the updated list
+    # wake_words_json_file_path.write_text(
+    #     json.dumps(wake_words_to_save, indent=2),
+    #     encoding="utf-8")
 
-    # Overwrite with the updated list
-    wake_words_json_file_path.write_text(
-        json.dumps(wake_words_to_save, indent=2),
-        encoding="utf-8")
-
-    print(f"Captured all samples!  See: {wake_words_json_file_path}")
+    # print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
 def wait_for_wake_words(
         offset_to_computed_decibles,
@@ -325,13 +349,6 @@ def _write_transcription_verbose_output(decibles, is_recording, print_sample_num
 
     sys.stdout.write("\r\033[K" + recording_state + "\n")
     sys.stdout.flush()
-
-def _check_offset_to_computed_decibles(offset_to_computed_decibles):
-    if not isinstance(offset_to_computed_decibles, (int, float)):
-        raise TypeError(f"'offset_to_computed_decibles' must be a number, got {type(offset_to_computed_decibles).__name__!r}")
-
-    if (offset_to_computed_decibles <= 0):
-        raise ValueError(f"'offset_to_computed_decibles' must be >= 0, got {x}.  Microphone was not calibrated.")
 
 def _clean_wake_word_phrase(s: str) -> str:
     # keep only alphanumeric or space
