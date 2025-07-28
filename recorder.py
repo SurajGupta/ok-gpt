@@ -1,10 +1,10 @@
 import pyaudio
 import json
-import sys
 import queue
-from vosk import Model, KaldiRecognizer
+from vosk import Model, KaldiRecognizer, SetLogLevel
 import math
 from pathlib import Path
+import click
 
 # Constants
 MODEL_PATH   = "vosk-model-small-en-us-0.15"   # any model works
@@ -28,28 +28,18 @@ The samples will be written to: {WAKE_WORDS_JSON_FILE_NAME}.
 Press any key to start…
 """
 
-# Calculations
+# Global Logic
 MAX_INPUT_QUEUE_SIZE = round(MAX_INPUT_QUEUE_SIZE_IN_SECONDS / (FRAMES_PER_BUFFER / FRAMES_PER_SECOND))
-
+SetLogLevel(-1) # Silence vosk logs
 
 
 import time
 import numpy
 import audioop
-import click
 import re
-
-
 
 SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
 DECIBLE_METER_MIN_DB, DECIBLE_METER_MAX_DB = 0, 90
-DECIBLE_METER_BAR_WIDTH = 40
-QUIET_ROOM_DECIBLES = 30
-NORMAL_CONVERSATION_DECIBLES = 55
-TALKING_DIRECTLY_INTO_MIC_DECIBLES = 75
-MIN_DECIBLES_BEFORE_SCALING_OFFSET = 20
-
-
 
 def establish_wake_words():
 
@@ -287,48 +277,3 @@ def _listen_for_and_transcribe_potential_wake_words(
         pyaudio_input_stream.stop_stream()
         pyaudio_input_stream.close()
         pyaudio_instance.terminate()
-
-def _render_decible_meter(decibles):
-    # clamp
-    x = max(DECIBLE_METER_MIN_DB, min(DECIBLE_METER_MAX_DB, decibles))
-
-    # fill ratio
-    f = (x - DECIBLE_METER_MIN_DB) / (DECIBLE_METER_MAX_DB - DECIBLE_METER_MIN_DB)
-    filled = int(f * DECIBLE_METER_BAR_WIDTH)
-    bar = "█" * filled + "─" * (DECIBLE_METER_BAR_WIDTH - filled)
-    return f"[{bar}] {decibles:5.1f} dB"
-
-def _calculate_decibles(recorded_input_data, offset_to_computed_decibles):
-    # Calculate decibles of recording to quantify the loudness
-    rms_of_recorded_input_data = audioop.rms(recorded_input_data, 2)
-    decibles = 20 * math.log10(rms_of_recorded_input_data / 32768.0)
-    decibles_with_offset = decibles + offset_to_computed_decibles
-
-    # Fixed offset doesn't honor how decibles scale as sound gets louder.
-    # After a minimum decible value (with offset), scale the offset before applying it.
-    if (decibles_with_offset <= MIN_DECIBLES_BEFORE_SCALING_OFFSET):
-        decibles = decibles_with_offset
-    else:
-        offset_scale = (TALKING_DIRECTLY_INTO_MIC_DECIBLES - QUIET_ROOM_DECIBLES) / (offset_to_computed_decibles - QUIET_ROOM_DECIBLES)
-        decibles = (decibles * offset_scale) + TALKING_DIRECTLY_INTO_MIC_DECIBLES
-
-    return decibles
-
-def _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number, recorded_text):
-    decible_meter = _render_decible_meter(round(decibles))
-
-    sys.stdout.write("\033[2F")
-    sys.stdout.write("\r\033[K" + decible_meter + "\n")
-
-    if is_recording:
-        recording_state = (" " * int(((DECIBLE_METER_BAR_WIDTH - 13)/2))) + "<< recording >>"
-    elif recorded_text == "":
-        recording_state = ""
-    else:
-        recording_state = " "
-        if print_sample_number_when_verbose:
-            recording_state = recording_state + f"({sample_number}): "
-        recording_state = recording_state + " \"" + recorded_text + "\""
-
-    sys.stdout.write("\r\033[K" + recording_state + "\n")
-    sys.stdout.flush()
