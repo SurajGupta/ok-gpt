@@ -71,7 +71,7 @@ MODEL_PATH     = "vosk-model-small-en-us-0.15"
 model   = Model(MODEL_PATH)
 grammar = json.dumps(WAKE_WORDS + ["[unk]"])
 rec     = KaldiRecognizer(model, SAMPLE_RATE, grammar)
-audio_q = queue.Queue(maxsize=10)
+audio_q = queue.Queue()
 
 
 def calibrate_decibles(offset_to_computed_decibles=0):
@@ -167,28 +167,22 @@ def wait_for_wake_words(
         verbose=False):
     _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
-    pa     = pyaudio.PyAudio()
-    stream = pa.open(
-        format            = pyaudio.paInt16,
-        channels          = 1,
-        rate              = SAMPLE_RATE,
-        input             = True,
-        frames_per_buffer = BLOCK_SIZE,
-        stream_callback   = _callback,
-        start             = True,              # begin immediately
-    )
+    with sd.RawInputStream(
+            samplerate=SAMPLE_RATE,
+            blocksize = BLOCK_SIZE,
+            dtype     ="int16",
+            channels  = 1,
+            callback  = _callback):
+        print("Listening for:", ", ".join(WAKE_WORDS))
+        last_print = time.time()
 
-    print("Listening for:", ", ".join(WAKE_WORDS))
-    last_print = time.time()
+        while True:
+            data = audio_q.get()
 
-    try:
-        while stream.is_active():
-            data = audio_q.get()               # blocks until next buffer
-
-            # --- run recogniser on this block ------------------------------
+            # This is the *only* call that runs the recogniser
             hotword_hit = rec.AcceptWaveform(data)
 
-            # Low‑latency partials
+            # Pull low‑latency partials so we don’t wait for sentence end
             partial = json.loads(rec.PartialResult() or "{}").get("partial", "")
             if partial and time.time() - last_print > 0.5:
                 print("partial:", partial.lower())
@@ -198,9 +192,7 @@ def wait_for_wake_words(
                 text = json.loads(rec.Result())["text"].strip().lower()
                 if text in WAKE_WORDS:
                     print(f"\n>>> WAKE WORD DETECTED: '{text}' <<<\n")
-                    rec.Reset()                # clear state for next phrase
-    finally:
-        stream.stop_stream(); stream.close(); pa.terminate()
+                    rec.Reset()                          # ready for next round
 
 def _listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
@@ -363,13 +355,8 @@ def _clean_wake_word_phrase(s: str) -> str:
 
     return cleaned
 
-def _callback(in_data, frame_count, time_info, status_flags):
-    if status_flags:
-        # Drop-outs or input overflow get logged but we keep going
-        print(status_flags, file=sys.stderr)
-    try:
-        audio_q.put_nowait(in_data)         # hand bytes to main thread
-    except queue.Full:
-        pass                                # main thread is busy -> skip
-    return (None, pyaudio.paContinue)
-
+def _callback(indata, frames, t, status):
+    """Called from PortAudio thread for every block of bytes."""
+    if status:
+        print(status, file=sys.stderr)
+    audio_q.put(bytes(indata))                       # no copies
