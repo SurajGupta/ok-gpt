@@ -168,31 +168,31 @@ def wait_for_wake_words(
     _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
     with sd.RawInputStream(
-            samplerate=SAMPLE_RATE,
-            blocksize = BLOCK_SIZE,
-            dtype     ="int16",
-            channels  = 1,
-            callback  = _callback):
-        print("Listening for:", ", ".join(WAKE_WORDS))
-        last_print = time.time()
+        samplerate=SAMPLE_RATE,
+        blocksize = BLOCK_SIZE,
+        dtype     ="int16",
+        channels  = 1,
+        callback  = _callback):
+    print("Listening for:", ", ".join(WAKE_WORDS))
+    last_print = time.time()
 
-        while True:
-            data = audio_q.get()
+    while True:
+        data = audio_q.get()
 
-            # This is the *only* call that runs the recogniser
-            hotword_hit = rec.AcceptWaveform(data)
+         # This is the *only* call that runs the recogniser
+        hotword_hit = rec.AcceptWaveform(data)
 
-            # Pull low‑latency partials so we don’t wait for sentence end
-            partial = json.loads(rec.PartialResult() or "{}").get("partial", "")
-            if partial and time.time() - last_print > 0.5:
-                print("partial:", partial.lower())
-                last_print = time.time()
+        # Pull low‑latency partials so we don’t wait for sentence end
+        partial = json.loads(rec.PartialResult() or "{}").get("partial", "")
+        if partial and time.time() - last_print > 0.5:
+            print("partial:", partial.lower())
+            last_print = time.time()
 
-            if hotword_hit:
-                text = json.loads(rec.Result())["text"].strip().lower()
-                if text in WAKE_WORDS:
-                    print(f"\n>>> WAKE WORD DETECTED: '{text}' <<<\n")
-                    rec.Reset()                          # ready for next round
+        if hotword_hit:
+            text = json.loads(rec.Result())["text"].strip().lower()
+            if text in WAKE_WORDS:
+                print(f"\n>>> WAKE WORD DETECTED: '{text}' <<<\n")
+                rec.Reset()                          # ready for next round
 
 def _listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
