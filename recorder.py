@@ -127,7 +127,7 @@ def establish_wake_words():
                 sampled_wake_words.append(phrase)
                 print(f"({len(sampled_wake_words)}): \"{phrase}\"")
 
-            if (len(sampled_wake_words) > WAKE_WORD_SAMPLES):
+            if (len(sampled_wake_words) >= WAKE_WORD_SAMPLES):
                 break
 
     # Close out the input stream
