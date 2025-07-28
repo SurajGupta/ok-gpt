@@ -122,7 +122,7 @@ def establish_wake_words():
             if wake_word:                          
                 samples += 1
                 print(f"{wake_word}")
-                print recognizer_result
+                print(recognizer_result)
 
             if (samples > WAKE_WORD_SAMPLES):
                 break
