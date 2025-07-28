@@ -8,9 +8,6 @@ import sys
 import json
 from pathlib import Path
 import re
-import queue, time
-from vosk import Model, KaldiRecognizer
-
 
 # Constants
 WHISPER_MODEL = whisper.load_model("tiny.en")
@@ -63,16 +60,6 @@ The samples will be written to:  {WAKE_WORDS_JSON_FILE_NAME}.
 
 Press any key to start…
 """
-
-WAKE_WORDS     = ["hey gizmo", "okay computer"]      # canonical list
-SAMPLE_RATE    = 16000                               # model default
-BLOCK_SIZE     = 6400                                # 0.4 s / 256 ms
-MODEL_PATH     = "vosk-model-small-en-us-0.15"
-model   = Model(MODEL_PATH)
-grammar = json.dumps(WAKE_WORDS + ["[unk]"])
-rec     = KaldiRecognizer(model, SAMPLE_RATE, grammar)
-audio_q = queue.Queue()
-
 
 def calibrate_decibles(offset_to_computed_decibles=0):
     
@@ -167,32 +154,38 @@ def wait_for_wake_words(
         verbose=False):
     _check_offset_to_computed_decibles(offset_to_computed_decibles)
 
-    with sd.RawInputStream(
-        samplerate=SAMPLE_RATE,
-        blocksize = BLOCK_SIZE,
-        dtype     ="int16",
-        channels  = 1,
-        callback  = _callback):
-    print("Listening for:", ", ".join(WAKE_WORDS))
-    last_print = time.time()
+    # Read wake words from JSON file into a set
+    wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
+    
+    if not wake_words_json_file_path.exists():
+        raise ValueError(f"Wake words haven't been established.  Can't find file: {WAKE_WORDS_JSON_FILE_NAME}.")
 
-    while True:
-        data = audio_q.get()
+    with wake_words_json_file_path.open("r", encoding="utf-8") as f:
+        wake_words_list = json.load(f)
 
-         # This is the *only* call that runs the recogniser
-        hotword_hit = rec.AcceptWaveform(data)
+    wake_words_set = set(wake_words_list)
 
-        # Pull low‑latency partials so we don’t wait for sentence end
-        partial = json.loads(rec.PartialResult() or "{}").get("partial", "")
-        if partial and time.time() - last_print > 0.5:
-            print("partial:", partial.lower())
-            last_print = time.time()
+    # Create a generator that yields potential wake words
+    wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
+        offset_to_computed_decibles,
+        wake_word_max_length_in_seconds,
+        decibles_that_indicate_speech,
+        verbose = verbose, 
+        print_sample_number_when_verbose = False)
 
-        if hotword_hit:
-            text = json.loads(rec.Result())["text"].strip().lower()
-            if text in WAKE_WORDS:
-                print(f"\n>>> WAKE WORD DETECTED: '{text}' <<<\n")
-                rec.Reset()                          # ready for next round
+    try:
+        # Loop until the a wake word is uttered
+        while True:
+            # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
+            possible_wake_word = next(wake_words_generator)
+
+            possible_wake_word = _clean_wake_word_phrase(possible_wake_word)
+
+            if (possible_wake_word in wake_words_set):
+                break
+    finally:
+        # Now we tear down the generator (runs its finally:)
+        wake_words_generator.close()
 
 def _listen_for_and_transcribe_potential_wake_words(
         offset_to_computed_decibles,
@@ -354,9 +347,3 @@ def _clean_wake_word_phrase(s: str) -> str:
     cleaned = cleaned.strip()
 
     return cleaned
-
-def _callback(indata, frames, t, status):
-    """Called from PortAudio thread for every block of bytes."""
-    if status:
-        print(status, file=sys.stderr)
-    audio_q.put(bytes(indata))                       # no copies
