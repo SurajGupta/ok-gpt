@@ -115,12 +115,14 @@ def establish_wake_words():
         # So AcceptWaveform does not return False indefinitately.  While the endpoint
         # detection can be customized, we just use the default config.
         if kaldi_recognizer.AcceptWaveform(pcm): 
-            wake_word = json.loads(kaldi_recognizer.Result())["text"].strip().lower()
+            var recognizer_result = kaldi_recognizer.Result()
+            wake_word = json.loads(recognizer_result)["text"].strip().lower()
 
             # ignore silence
             if wake_word:                          
                 samples += 1
                 print(f"{wake_word}")
+                print recognizer_result
 
             if (samples > WAKE_WORD_SAMPLES):
                 break
