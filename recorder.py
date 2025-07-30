@@ -24,7 +24,7 @@ Then repeat your wake word phrase again.
 Keep repeating it until all {WAKE_WORD_SAMPLES} samples are collected.
 
 For each sample, I will tell you my {WAKE_WORD_SAMPLE_MAX_ALTERNATIVES} best guesses
-as to what you said.
+(if I have that many) as to what you said.
 
 The samples will be written to: {WAKE_WORDS_JSON_FILE_NAME}.
 
@@ -116,7 +116,7 @@ def establish_wake_words():
                         print(f"({sample_number}): \"{phrase}\"")
 
                 print()
-                
+
                 if (sample_number >= WAKE_WORD_SAMPLES):
                     break
     finally:
