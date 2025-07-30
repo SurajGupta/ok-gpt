@@ -196,7 +196,7 @@ def wait_for_wake_words():
             # data and audio_q.get() can block indefinitely.  That's why we set the timeout.
             pcm = audio_queue.get(timeout = SECONDS_IN_BUFFER * 2)
 
-            # See note in establish_wake_words about endpoint/silence detection
+            # See note in establish_wake_words about endpoint/silence detection.
             if kaldi_recognizer.AcceptWaveform(pcm): 
                 recognizer_result_json = kaldi_recognizer.Result()
                 recognizer_result_dictionary = json.loads(recognizer_result_json)
