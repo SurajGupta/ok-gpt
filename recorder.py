@@ -159,10 +159,9 @@ def wait_for_wake_words():
     # If you leave the list at just your wake‑words, the recogniser is forced to pick 
     # whichever phrase is closest to any incoming speech even if the user said 
     # something totally different.
-    wake_words_list.add("[unk]") 
+    grammar_json = json.dumps(wake_words_list + ["[unk]"])
 
     # Create the recognizer.
-    grammar_json = json.dumps(wake_words_list)
     kaldi_recognizer = KaldiRecognizer(MODEL, FRAMES_PER_SECOND, grammar_json)
 
     # Start listening and recording
