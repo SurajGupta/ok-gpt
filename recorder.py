@@ -191,9 +191,15 @@ def wait_for_wake_words():
 
     try:
         while True:
-            # If the stream stops between iterations, the callback will stop enqueuing 
-            # data and audio_q.get() can block indefinitely.  That's why we set the timeout.
-            pcm = audio_queue.get(timeout = SECONDS_IN_BUFFER * 2)
+            try:
+                # If the stream stops between iterations, the callback will stop enqueuing 
+                # data and audio_q.get() can block indefinitely.  That's why we set the timeout.
+                pcm = audio_queue.get(timeout = SECONDS_IN_BUFFER * 2)
+            except queue.Empty:
+                # Mic disconnected or or some other issue?
+                if not pyaudio_input_stream.is_active():
+                    raise RuntimeError("Input stream became inactive.")          
+                continue
 
             # See note in establish_wake_words about endpoint/silence detection.
             if kaldi_recognizer.AcceptWaveform(pcm): 
