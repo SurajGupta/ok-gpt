@@ -115,6 +115,8 @@ def establish_wake_words():
                         sampled_wake_words.append(phrase)
                         print(f"({sample_number}): \"{phrase}\"")
 
+                print()
+                
                 if (sample_number >= WAKE_WORD_SAMPLES):
                     break
     finally:
