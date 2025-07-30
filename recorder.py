@@ -61,6 +61,7 @@ def establish_wake_words():
     #         { "word": "gizmo", "start": 0.41, "end": 0.89, "conf": 0.75 }
     #     ]
     # }
+    kaldi_recognizer.SetMaxAlternatives(5)
     kaldi_recognizer.SetWords(True)
 
     # Instructions to user.
@@ -110,12 +111,14 @@ def establish_wake_words():
                 # We could average the confidence values from each word and then compare
                 # against some threshold before accepting the word.  Potential future improvement.
                 recognizer_result = kaldi_recognizer.Result()
-                phrase = json.loads(recognizer_result)["text"].strip().lower()
+                recognizer_result_json = json.loads(recognizer_result)
+                phrase = recognizer_result_json["text"].strip().lower()
 
                 # Ignore silence.
                 if phrase:                          
                     sampled_wake_words.append(phrase)
                     print(f"({len(sampled_wake_words)}): \"{phrase}\"")
+                    print(recognizer_result_json)
 
                 if (len(sampled_wake_words) >= WAKE_WORD_SAMPLES):
                     break
@@ -144,12 +147,7 @@ def establish_wake_words():
 
     print(f"Captured all samples!  See: {wake_words_json_file_path}")
 
-def wait_for_wake_words(
-        offset_to_computed_decibles,
-        wake_word_max_length_in_seconds=1.5,
-        decibles_that_indicate_speech=50,
-        verbose=False):
-    _check_offset_to_computed_decibles(offset_to_computed_decibles)
+def wait_for_wake_words():
 
     # Read wake words from JSON file into a set
     wake_words_json_file_path = Path(WAKE_WORDS_JSON_FILE_NAME)
@@ -159,8 +157,18 @@ def wait_for_wake_words(
 
     with wake_words_json_file_path.open("r", encoding="utf-8") as f:
         wake_words_list = json.load(f)
+    
+    # The "unknown‐word" escape hatch that Kaldi/Vosk keeps in every language‑model.
+    # Vosk prunes the decoder so it can only emit the tokens in the grammar.
+    # If you leave the list at just your wake‑words, the recogniser is forced to pick 
+    # whichever phrase is closest to any incoming speech even if the user said 
+    # something totally different.
+    wake_words_list.add("[unk]") 
 
-    wake_words_set = set(wake_words_list)
+    # Create the recognizer.
+    grammar_json = wake_words_json = json.dumps(wake_words_list)
+    kaldi_recognizer = KaldiRecognizer(MODEL, FRAMES_PER_SECOND, wake_words_json)
+
 
     # Create a generator that yields potential wake words
     wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
@@ -183,97 +191,3 @@ def wait_for_wake_words(
     finally:
         # Now we tear down the generator (runs its finally:)
         wake_words_generator.close()
-
-def _listen_for_and_transcribe_potential_wake_words(
-        offset_to_computed_decibles,
-        wake_word_max_length_in_seconds,
-        decibles_that_indicate_speech,
-        verbose,
-        print_sample_number_when_verbose):
-
-    _check_offset_to_computed_decibles(offset_to_computed_decibles)
-
-    # Open the audio stream and start recording right away.
-    pyaudio_instance = pyaudio.PyAudio()
-    pyaudio_input_stream = pyaudio_instance.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=FRAMES_PER_SECOND,
-        input=True,
-        frames_per_buffer=FRAMES_PER_BUFFER,
-        start=True,
-    )
-
-    # In a loop, wait until input data exceeds some threshold decibles, then record.
-    # Record until we hit some threshold seconds that cover the longest possible time
-    # that the wake word is uttered.  Then perform speach-to-text and yield the text.
-    is_recording = False
-    recorded_seconds = 0
-    buffered_input_data = b''
-    recorded_frames = []
-    recorded_text = ""
-    sample_number = 0
-    
-    try:
-        while True:
-            # Read from the input/mic stream.  
-            # Will wait until buffer is full before returning.
-            prior_buffered_input_data = buffered_input_data
-            buffered_input_data = pyaudio_input_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
-            recorded_seconds += SECONDS_IN_BUFFER
-
-            # Calculate decibles of audio that was in the buffer.
-            decibles = _calculate_decibles(buffered_input_data, offset_to_computed_decibles)
-            
-            # Output computed decibles, recording status, and last transcription.
-            if verbose:
-                _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number, recorded_text)
-
-            # If we are recording then determine if we are done recording.
-            if is_recording:
-
-                # Append buffered input to recorded frames.
-                recorded_frames.append(buffered_input_data)
-
-                # Have we been recording for enough time?
-                if (recorded_seconds >= wake_word_max_length_in_seconds):
-                    
-                    # Stop recording
-                    is_recording = False
-                    if verbose and print_sample_number_when_verbose:
-                        sample_number += 1
-
-                    # Perform in-memory speach-to-text
-                    pcm = b''.join(recorded_frames)
-                    recording = numpy.frombuffer(pcm, dtype=numpy.int16)
-                    recording = recording.astype(numpy.float32) / 32768.0
-                    transcription  = WHISPER_MODEL.transcribe(recording, fp16=False, temperature=[0.0], compression_ratio_threshold=None, logprob_threshold=None)
-
-                    # Yield the transcription text and clear the recorded frames.
-                    recorded_text = transcription["text"].strip()
-                    yield recorded_text
-                    recorded_frames = []
-
-            elif (decibles > decibles_that_indicate_speech):
-                # Speech detected; start recording.
-                is_recording = True
-
-                # The prior buffer might contain some speech we need, 
-                # so record it along with the current buffer.
-                recorded_frames.append(prior_buffered_input_data)
-                recorded_frames.append(buffered_input_data)
-                recorded_seconds = 2 * SECONDS_IN_BUFFER
-                recorded_text = ""
-                # print("recording started")
-            else:
-                # We aren't recording and shouldn't start.
-                recorded_seconds = 0
-    finally:
-        # Write the final transcription
-        if verbose:
-            _write_transcription_verbose_output(decibles, is_recording, print_sample_number_when_verbose, sample_number, recorded_text)
-
-        # Cleanup when generator closes
-        pyaudio_input_stream.stop_stream()
-        pyaudio_input_stream.close()
-        pyaudio_instance.terminate()
