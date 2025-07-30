@@ -110,15 +110,14 @@ def establish_wake_words():
 
                 # We could average the confidence values from each word and then compare
                 # against some threshold before accepting the word.  Potential future improvement.
-                recognizer_result_json = kaldi_recognizer.Result()
-                recognizer_result_dictionary = json.loads(recognizer_result_json)
-                phrase = recognizer_result_dictionary["text"].strip().lower()
+                recognizer_result = kaldi_recognizer.Result()
+                phrase = json.loads(recognizer_result)["text"].strip().lower()
 
                 # Ignore silence.
                 if phrase:                          
                     sampled_wake_words.append(phrase)
                     print(f"({len(sampled_wake_words)}): \"{phrase}\"")
-                    print(recognizer_result_json)
+                    print(recognizer_result)
 
                 if (len(sampled_wake_words) >= WAKE_WORD_SAMPLES):
                     break
