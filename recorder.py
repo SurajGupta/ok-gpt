@@ -35,12 +35,6 @@ MODEL_PATH   = "vosk-model-small-en-us-0.15"   # any model works
 SetLogLevel(-1) # Silence vosk logs, must be before loading the model
 MODEL = Model(MODEL_PATH)
 
-
-import time
-import numpy
-import audioop
-import re
-
 SECONDS_IN_BUFFER = FRAMES_PER_BUFFER / FRAMES_PER_SECOND # 0.125 seconds
 DECIBLE_METER_MIN_DB, DECIBLE_METER_MAX_DB = 0, 90
 
@@ -115,10 +109,15 @@ def establish_wake_words():
                         sampled_wake_words.append(phrase)
                         print(f"({sample_number}): \"{phrase}\"")
 
+                # Extra newline to separate samples.
                 print()
 
+                # If we've collected enough samples break out of the loop, otherwise
+                # reset the recognizer and move on the next sample.
                 if (sample_number >= WAKE_WORD_SAMPLES):
                     break
+
+                kaldi_recognizer.Reset()
     finally:
         # Close out the input stream
         pyaudio_input_stream.stop_stream()
@@ -163,28 +162,49 @@ def wait_for_wake_words():
     wake_words_list.add("[unk]") 
 
     # Create the recognizer.
-    grammar_json = wake_words_json = json.dumps(wake_words_list)
-    kaldi_recognizer = KaldiRecognizer(MODEL, FRAMES_PER_SECOND, wake_words_json)
+    grammar_json = json.dumps(wake_words_list)
+    kaldi_recognizer = KaldiRecognizer(MODEL, FRAMES_PER_SECOND, grammar_json)
 
+    # Start listening and recording
+    audio_queue = queue.Queue(maxsize=MAX_INPUT_QUEUE_SIZE)
+    def _pyaudio_mic_callback(in_data, frame_count, time_info, status_flags):
+        try:
+            # Immediately raises queue.Full if no slot is free.
+            audio_queue.put_nowait(in_data)
+        except queue.Full:
+            # Drop audio if queue is full
+            pass
 
-    # Create a generator that yields potential wake words
-    wake_words_generator = _listen_for_and_transcribe_potential_wake_words(
-        offset_to_computed_decibles,
-        wake_word_max_length_in_seconds,
-        decibles_that_indicate_speech,
-        verbose = verbose, 
-        print_sample_number_when_verbose = False)
+        # Tell PortAudio to keep recording
+        return (None, pyaudio.paContinue)
+    
+    pyaudio_instance = pyaudio.PyAudio()
+    
+    pyaudio_input_stream = pyaudio_instance.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=FRAMES_PER_SECOND,
+        input=True,
+        frames_per_buffer=FRAMES_PER_BUFFER,
+        stream_callback = _pyaudio_mic_callback,
+        start=True,
+    )   
 
     try:
-        # Loop until the a wake word is uttered
         while True:
-            # This will block until listen_for_and_transcribe_potential_wake_words yields a phrase
-            possible_wake_word = next(wake_words_generator)
+            # If the stream stops between iterations, the callback will stop enqueuing 
+            # data and audio_q.get() can block indefinitely.  That's why we set the timeout.
+            pcm = audio_queue.get(timeout = SECONDS_IN_BUFFER * 2)
 
-            possible_wake_word = _clean_wake_word_phrase(possible_wake_word)
-
-            if (possible_wake_word in wake_words_set):
+            # See note in establish_wake_words about endpoint/silence detection
+            if kaldi_recognizer.AcceptWaveform(pcm): 
+                recognizer_result_json = kaldi_recognizer.Result()
+                recognizer_result_dictionary = json.loads(recognizer_result_json)
+                wake_word = recognizer_result_dictionary["text"].strip().lower()
+                print(wake_word)
                 break
     finally:
-        # Now we tear down the generator (runs its finally:)
-        wake_words_generator.close()
+        # Close out the input stream
+        pyaudio_input_stream.stop_stream()
+        pyaudio_input_stream.close()
+        pyaudio_instance.terminate()
