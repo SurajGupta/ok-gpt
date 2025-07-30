@@ -154,6 +154,8 @@ def wait_for_wake_words():
     with wake_words_json_file_path.open("r", encoding="utf-8") as f:
         wake_words_list = json.load(f)
     
+    wake_words_set = set(wake_words_list)
+
     # The "unknown‐word" escape hatch that Kaldi/Vosk keeps in every language‑model.
     # Vosk prunes the decoder so it can only emit the tokens in the grammar.
     # If you leave the list at just your wake‑words, the recogniser is forced to pick 
@@ -187,7 +189,7 @@ def wait_for_wake_words():
         frames_per_buffer=FRAMES_PER_BUFFER,
         stream_callback = _pyaudio_mic_callback,
         start=True,
-    )   
+    )
 
     try:
         while True:
@@ -203,11 +205,19 @@ def wait_for_wake_words():
 
             # See note in establish_wake_words about endpoint/silence detection.
             if kaldi_recognizer.AcceptWaveform(pcm): 
+                
+                # Get the the possible wake word.
                 recognizer_result_json = kaldi_recognizer.Result()
                 recognizer_result_dictionary = json.loads(recognizer_result_json)
-                wake_word = recognizer_result_dictionary["text"].strip().lower()
-                print(wake_word)
-                break
+                possible_wake_word = recognizer_result_dictionary["text"].strip().lower()
+
+                # Determine if it's a real wake word.
+                if possible_wake_word in wake_words_set:
+                    print(possible_wake_word)
+                    break
+                else:
+                    # Not a real wake word, reset the recognizer.
+                    kaldi_recognizer.Reset();
     finally:
         # Close out the input stream
         pyaudio_input_stream.stop_stream()
