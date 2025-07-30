@@ -13,6 +13,7 @@ MAX_INPUT_QUEUE_SIZE_IN_SECONDS = 2
 MAX_INPUT_QUEUE_SIZE = round(MAX_INPUT_QUEUE_SIZE_IN_SECONDS / (FRAMES_PER_BUFFER / FRAMES_PER_SECOND))
 
 WAKE_WORD_SAMPLES = 10
+WAKE_WORD_SAMPLE_MAX_ALTERNATIVES = 5
 WAKE_WORDS_JSON_FILE_NAME = "wake_words.json"
 ESTABLISH_WAKE_WORDS_INTRO_MESSAGE = f"""
 Let's establish your wake word phrase.
@@ -21,6 +22,9 @@ to transcribe it (the transcription will be printed to the screen).
 Then repeat your wake word phrase again.  
 
 Keep repeating it until all {WAKE_WORD_SAMPLES} samples are collected.
+
+For each sample, I will tell you my {WAKE_WORD_SAMPLE_MAX_ALTERNATIVES} best guesses
+as to what you said.
 
 The samples will be written to: {WAKE_WORDS_JSON_FILE_NAME}.
 
@@ -47,22 +51,8 @@ def establish_wake_words():
     # gives us discovery: we learn how the model actually hears us.
     kaldi_recognizer = KaldiRecognizer(MODEL, FRAMES_PER_SECOND)
 
-    # We ask for the confidence score to be included with the transcription.
-    # The confidence is specified per word, not per phrase and a start/end time
-    # is also included per word.
-    # The confidence will be in the range 0 → 1 (close to 1 ≈ high certainty).
-    # Values are posterior probabilities computed by Kaldi’s decoder; they are 
-    # not strictly calibrated but are useful for relative filtering 
-    # (e.g. discard words whose conf < 0.3).  Output will look something like this:
-    # {
-    #     "text": "hey gizmo",
-    #     "result": [
-    #         { "word": "hey",   "start": 0.12, "end": 0.40, "conf": 0.87 },
-    #         { "word": "gizmo", "start": 0.41, "end": 0.89, "conf": 0.75 }
-    #     ]
-    # }
-    kaldi_recognizer.SetMaxAlternatives(5)
-    kaldi_recognizer.SetWords(True)
+    # We ask for X best guesses so we can maximize the value of the sample.
+    kaldi_recognizer.SetMaxAlternatives(WAKE_WORD_SAMPLE_MAX_ALTERNATIVES)
 
     # Instructions to user.
     click.pause(ESTABLISH_WAKE_WORDS_INTRO_MESSAGE)
@@ -93,6 +83,7 @@ def establish_wake_words():
 
     # Loop until all samples are collected.
     sampled_wake_words = []
+    sample_number = 0
     
     try:
         while True:
@@ -107,20 +98,24 @@ def establish_wake_words():
             # So AcceptWaveform does not return False indefinitately.  While the endpoint
             # detection can be customized, we just use the default config.
             if kaldi_recognizer.AcceptWaveform(pcm): 
+                sample_number += 1
 
                 # We could average the confidence values from each word and then compare
-                # against some threshold before accepting the word.  Potential future improvement.
-                recognizer_result = kaldi_recognizer.Result()
-                print(recognizer_result)
+                # against some threshold before accepting the word.  
+                # If so we have to add this: kaldi_recognizer.SetWords(True)
+                # Potential future improvement.
+                recognizer_result_json = kaldi_recognizer.Result()
+                recognizer_result_dictionary = json.loads(recognizer_result_json)
 
-                phrase = json.loads(recognizer_result)["text"].strip().lower()
+                for alternatives in recognizer_result_dictionary.get("alternatives", []):
+                    phrase = alternatives.get("text", "").strip().lower()
 
-                # Ignore silence.
-                if phrase:                          
-                    sampled_wake_words.append(phrase)
-                    print(f"({len(sampled_wake_words)}): \"{phrase}\"")
+                    # Ignore silence.
+                    if phrase:          
+                        sampled_wake_words.append(phrase)
+                        print(f"({sample_number}): \"{phrase}\"")
 
-                if (len(sampled_wake_words) >= WAKE_WORD_SAMPLES):
+                if (sample_number >= WAKE_WORD_SAMPLES):
                     break
     finally:
         # Close out the input stream
